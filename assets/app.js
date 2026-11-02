@@ -6950,7 +6950,11 @@
       </dialog>
       <div class="presentation-viewer-progress" role="progressbar" aria-label="Slide progress" aria-valuemin="1" aria-valuemax="${slides.length}" aria-valuenow="1"><span data-presentation-progress></span></div>
       <div class="presentation-viewer-layout">
-        <div class="presentation-viewer-stage" data-presentation-stage></div>
+        <div class="presentation-viewer-stage-frame">
+          <div class="presentation-viewer-stage" data-presentation-stage></div>
+          <button type="button" class="presentation-stage-nav presentation-stage-nav-previous" data-presentation-stage-previous aria-label="Previous slide or reveal" title="Previous slide or reveal"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+          <button type="button" class="presentation-stage-nav presentation-stage-nav-next" data-presentation-stage-next aria-label="Next slide or reveal" title="Next slide or reveal"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+        </div>
         <aside class="presentation-presenter-notes" data-presentation-notes hidden>
           <label>Private presenter notes<textarea data-presentation-notes-input rows="12" placeholder="Only you can see these notes."></textarea></label>
           <p>Notes are private to this presenter and are never sent to student devices.</p>
@@ -6963,6 +6967,8 @@
     const stage = dialog.querySelector("[data-presentation-stage]");
     const previous = dialog.querySelector("[data-presentation-previous]");
     const next = dialog.querySelector("[data-presentation-next]");
+    const stagePrevious = dialog.querySelector("[data-presentation-stage-previous]");
+    const stageNext = dialog.querySelector("[data-presentation-stage-next]");
     const count = dialog.querySelector("[data-presentation-slide-count]");
     const liveButton = dialog.querySelector("[data-presentation-live]");
     const liveSharing = dialog.querySelector("[data-presentation-live-sharing]");
@@ -7630,8 +7636,16 @@
     };
     const fitSlideToStage = () => {
       const article = stage.querySelector(".presentation-slide-preview");
-      if (!article || !stage.clientWidth || !stage.clientHeight) return;
-      const width = Math.min(1100, stage.clientWidth, stage.clientHeight * 16 / 9);
+      if (!article) return;
+      const stageStyle = window.getComputedStyle(stage);
+      const horizontalPadding = (Number.parseFloat(stageStyle.paddingLeft) || 0)
+        + (Number.parseFloat(stageStyle.paddingRight) || 0);
+      const verticalPadding = (Number.parseFloat(stageStyle.paddingTop) || 0)
+        + (Number.parseFloat(stageStyle.paddingBottom) || 0);
+      const availableWidth = Math.max(0, stage.clientWidth - horizontalPadding);
+      const availableHeight = Math.max(0, stage.clientHeight - verticalPadding);
+      if (!availableWidth || !availableHeight) return;
+      const width = Math.min(availableWidth, availableHeight * 16 / 9);
       article.style.width = `${width}px`;
       article.style.height = `${width * 9 / 16}px`;
     };
@@ -7681,6 +7695,8 @@
       previous.disabled = slideUpdatePending || (activeSlide === 0 && revealStep === 0);
       next.disabled = slideUpdatePending || (activeSlide === slides.length - 1
         && (revealMode === "all" || revealStep >= revealedCount));
+      stagePrevious.disabled = previous.disabled;
+      stageNext.disabled = next.disabled;
       const progress = dialog.querySelector("[data-presentation-progress]");
       const progressBar = progress.parentElement;
       const total = slides.length + (revealMode === "all" ? 0 : slides.reduce((sum, slide) => sum + revealUnitCount(slide, revealMode), 0));
@@ -7766,6 +7782,8 @@
     };
     previous.addEventListener("click", () => void advance(-1));
     next.addEventListener("click", () => void advance(1));
+    stagePrevious.addEventListener("click", () => void advance(-1));
+    stageNext.addEventListener("click", () => void advance(1));
     revealSelect.addEventListener("change", async () => {
       revealMode = revealSelect.value;
       revealStep = 0;

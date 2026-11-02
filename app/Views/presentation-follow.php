@@ -16,8 +16,8 @@ header('X-Robots-Tag: noindex, nofollow');
   <link rel="stylesheet" href="<?= e(app_url('assets/fontawesome/css/fontawesome.min.css')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/fontawesome/css/solid.min.css')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/action-icons.css')) ?>">
-  <link rel="stylesheet" href="<?= e(app_url('assets/styles.css?v=157')) ?>">
-  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-follow.css?v=34')) ?>">
+  <link rel="stylesheet" href="<?= e(app_url('assets/styles.css?v=164')) ?>">
+  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-follow.css?v=41')) ?>">
   <script src="<?= e(app_url('assets/presentation-follow.js?v=34')) ?>" defer></script>
   <script src="<?= e(app_url('assets/action-icons.js?v=1')) ?>" defer></script>
 </head>

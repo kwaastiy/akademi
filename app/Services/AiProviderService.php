@@ -1252,10 +1252,22 @@ final class AiProviderService
                         }
                     }
                 } elseif (in_array($visual['type'], ['process', 'timeline', 'cards', 'comparison'], true)) {
-                    $items = $visual['steps'] ?? $visual['items'] ?? null;
-                    if (!is_array($items) || $items === [] || count($items) > 8 || array_filter($items, 'is_string') !== $items) {
+                    $itemsKey = isset($visual['steps']) ? 'steps' : 'items';
+                    $items = $visual[$itemsKey] ?? null;
+                    if (!is_array($items) || !array_is_list($items) || $items === [] || count($items) > 8) {
                         throw new RuntimeException('The presentation contains invalid diagram labels. Please generate it again.', 503);
                     }
+                    $normalizedItems = [];
+                    foreach ($items as $item) {
+                        if (is_array($item) && !array_is_list($item)) {
+                            $item = $item['label'] ?? $item['title'] ?? $item['details'] ?? null;
+                        }
+                        if (!is_string($item) || trim($item) === '') {
+                            throw new RuntimeException('The presentation contains invalid diagram labels. Please generate it again.', 503);
+                        }
+                        $normalizedItems[] = trim($item);
+                    }
+                    $slide['visual'][$itemsKey] = $normalizedItems;
                 } elseif ($visual['type'] === 'geometry') {
                     $bounds = [];
                     foreach (['x_min', 'x_max', 'y_min', 'y_max'] as $key) {

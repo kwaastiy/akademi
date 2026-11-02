@@ -1555,7 +1555,7 @@ html[data-theme="dark"] .reader-download { color: var(--brand-primary); }
 .presentation-slide-preview.presentation-template-project { box-shadow: inset 0 -7px 0 var(--presentation-accent); }
 .presentation-slide-preview.presentation-template-revision h4 { text-decoration: underline; text-decoration-color: var(--presentation-secondary); text-decoration-thickness: 3px; }
 .presentation-slide-preview.presentation-template-flipped header { border-bottom: 2px dashed var(--presentation-accent); padding-bottom: .7rem; }
-.presentation-viewer-dialog { position: fixed; inset: 0; width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #101923; color: #f4f7fb; }
+.presentation-viewer-dialog { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: 100dvh; margin: 0; padding: 0; border: 0; background: #101923; color: #f4f7fb; }
 .presentation-viewer-dialog::backdrop { background: #101923; }
 .presentation-viewer-dialog[open] { display: flex; flex-direction: column; overflow: hidden; }
 .presentation-fullscreen-content { position: relative; display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: #101923; }
@@ -1575,11 +1575,18 @@ html[data-theme="dark"] .reader-download { color: var(--brand-primary); }
 .presentation-live-sharing[data-ended="true"] > button,
 .presentation-live-sharing[data-ended="true"] > .presentation-icon-button { display: none; }
 .presentation-viewer-stage { display: grid; flex: 1; min-height: 0; place-items: center; overflow: auto; padding: 1.5rem; }
-.presentation-viewer-stage .presentation-slide-preview { width: min(100%, 1100px); min-height: min(68vh, 760px); padding: clamp(1.5rem, 5vw, 4rem); font-size: clamp(1rem, 2vw, 1.4rem); }
+.presentation-viewer-stage .presentation-slide-preview { width: 100%; min-height: min(68vh, 760px); padding: clamp(1.5rem, 5vw, 4rem); font-size: clamp(1rem, 2vw, 1.4rem); }
 .presentation-viewer-stage .presentation-slide-preview h4 { font-size: clamp(1.5rem, 4vw, 3rem); }
 .presentation-viewer-stage .presentation-slide-preview { position: relative; }
 .presentation-viewer-layout { display: flex; flex: 1; min-height: 0; }
 .presentation-viewer-layout .presentation-viewer-stage { min-width: 0; }
+.presentation-viewer-stage-frame { position: relative; display: flex; flex: 1 1 0; min-width: 0; min-height: 0; }
+.presentation-viewer-stage-frame .presentation-viewer-stage { width: 100%; }
+.presentation-stage-nav { position: absolute; z-index: 3; top: 50%; display: grid; width: 44px; height: 44px; place-items: center; padding: 0; transform: translateY(-50%); border: 1px solid rgb(255 255 255 / 28%); border-radius: 50%; background: rgb(16 25 35 / 78%); color: #f4f7fb; font-size: 15px; cursor: pointer; }
+.presentation-stage-nav-previous { left: 10px; }
+.presentation-stage-nav-next { right: 10px; }
+.presentation-stage-nav:hover:not(:disabled) { border-color: #70d2ad; background: #244b3b; }
+.presentation-stage-nav:disabled { cursor: not-allowed; opacity: .35; }
 .presentation-presenter-notes { width: min(320px, 30vw); flex: 0 0 min(320px, 30vw); padding: 18px; overflow: auto; border-left: 1px solid rgb(255 255 255 / 14%); background: #18251f; }
 .presentation-presenter-notes label { display: grid; gap: 10px; font-size: 13px; font-weight: 700; }
 .presentation-presenter-notes textarea { width: 100%; min-height: 180px; padding: 10px; border: 1px solid #53665b; border-radius: 7px; background: #101923; color: #f4f7fb; font: inherit; resize: vertical; }
@@ -1679,6 +1686,9 @@ html[data-theme="dark"] .reader-download { color: var(--brand-primary); }
   .presentation-toolbar-popover { top: 8px; right: 8px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
   .presentation-viewer-stage { padding: 4px; }
   .presentation-viewer-stage .presentation-slide-preview { width: 100%; padding: 16px; }
+  .presentation-stage-nav { width: 38px; height: 38px; }
+  .presentation-stage-nav-previous { left: 5px; }
+  .presentation-stage-nav-next { right: 5px; }
   .presentation-live-sharing { flex-wrap: wrap; overflow: visible; }
   .presentation-live-link { min-width: 180px; }
   .presentation-live-status { display: none; }
@@ -1756,32 +1766,42 @@ html[data-theme="dark"] .presentation-theme-vibrant { border-color: #4f3c56; }
 .presentation-viewer-stage .presentation-slide-preview h4 { margin: 1.2cqi 0 1.4cqi; font-size: clamp(20px, 3cqi, 34px); line-height: 1.15; }
 .presentation-viewer-stage .presentation-slide-preview ul { gap: .9cqi; padding-left: 1.7cqi; font-size: clamp(12px, 1.45cqi, 16px); line-height: 1.35; }
 .presentation-viewer-stage .presentation-slide-preview > p { padding-top: .8cqi; font-size: clamp(10px, 1.2cqi, 13px); line-height: 1.4; }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) {
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto auto auto auto auto;
   align-items: stretch;
+  align-content: start;
   column-gap: 2cqi;
   row-gap: .7cqi;
 }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) {
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) {
   grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
 }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) header { grid-column: 1; grid-row: 1; }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) h4 { grid-column: 1; grid-row: 2; }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) ul { grid-column: 1; grid-row: 3; align-self: center; }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) > .presentation-visual { grid-column: 2; grid-row: 1 / 6; align-self: center; height: fit-content; }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-slide-image) .presentation-media-column { grid-column: 2; grid-row: 1 / 6; align-self: center; height: fit-content; max-height: 100%; grid-template-rows: auto auto; align-content: center; }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) > .presentation-visual,
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) .presentation-media-column {
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) header { grid-column: 1; grid-row: 1; }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) h4 { grid-column: 1; grid-row: 2; }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) ul { grid-column: 1; grid-row: 3; align-self: start; }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) > .presentation-visual { grid-column: 2; grid-row: 1 / 7; align-self: center; height: fit-content; }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-slide-image) .presentation-media-column { grid-column: 2; grid-row: 1 / 7; align-self: center; height: fit-content; max-height: 100%; grid-template-rows: auto auto; align-content: center; }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) > .presentation-visual,
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-media-column {
   align-self: center;
   height: fit-content;
   min-height: min-content;
 }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) .presentation-media-column {
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-media-column {
   grid-template-rows: auto auto;
   align-content: center;
 }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-slide-image) .presentation-media-column {
+  align-self: stretch;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: stretch;
+}
+.presentation-viewer-stage .presentation-media-column .presentation-slide-image { box-sizing: border-box; height: 100%; min-width: 0; min-height: 0; max-height: none; }
 .presentation-media-column { display: grid; grid-template-rows: auto auto; gap: 1cqi; min-height: 0; }
 .presentation-media-column .presentation-visual { min-height: 0; margin: 0; }
 .presentation-slide-image { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 90px; max-height: 190px; margin: 10px 0 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--presentation-accent) 20%, transparent); border-radius: 8px; background: #f3f5f2; }
@@ -1791,8 +1811,9 @@ html[data-theme="dark"] .presentation-theme-vibrant { border-color: #4f3c56; }
 .presentation-media-column .presentation-slide-image { min-height: 0; max-height: none; margin: 0; }
 .presentation-media-column .presentation-visual { grid-column: auto; grid-row: auto; align-self: center; height: fit-content; }
 .presentation-media-column .presentation-visual > strong { font-size: clamp(8px, .9cqi, 11px); }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) > p { grid-column: 1; grid-row: 4; margin: auto 0 0; }
-.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual) .presentation-local-reveal-progress { grid-column: 1; grid-row: 5; margin-top: .4cqi; }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-slide-activity { grid-column: 1; grid-row: 4; align-self: start; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) > p { grid-column: 1; grid-row: 5; margin: 0; overflow-wrap: anywhere; }
+.presentation-viewer-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-local-reveal-progress { grid-column: 1; grid-row: 6; margin-top: .4cqi; }
 .presentation-viewer-stage .presentation-visual {
   container-type: inline-size;
   min-height: min-content;
