@@ -6929,10 +6929,6 @@
           <h3><i class="fa-solid fa-square-poll-vertical"></i> Live poll <span class="presentation-live-count" data-presentation-feedback-count="poll" hidden></span><button type="button" class="presentation-feedback-close" data-presentation-poll-hide aria-label="Close poll pane" title="Close poll pane"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></h3>
           <div class="presentation-poll-feedback-content" data-presentation-poll-feedback></div>
         </section>
-        <section class="presentation-feedback-card presentation-question-live-feedback" data-presentation-question-live-feedback aria-label="Class chat" hidden>
-          <h3><i class="fa-solid fa-comments"></i> Class chat <span class="presentation-live-count" data-presentation-feedback-count="questions" hidden></span><button type="button" class="presentation-feedback-close" data-presentation-chat-hide aria-label="Close chat pane" title="Close chat pane"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></h3>
-          <div class="presentation-question-feedback-content" data-presentation-question-feedback></div>
-        </section>
       </div>
       <dialog class="presentation-participants-dialog" data-presentation-participants-dialog aria-labelledby="presentation-participants-title">
         <section class="presentation-feedback-card presentation-participants" aria-label="Students in this presentation">
@@ -6959,6 +6955,10 @@
           <label>Private presenter notes<textarea data-presentation-notes-input rows="12" placeholder="Only you can see these notes."></textarea></label>
           <p>Notes are private to this presenter and are never sent to student devices.</p>
         </aside>
+        <section class="presentation-feedback-card presentation-question-live-feedback" data-presentation-question-live-feedback aria-label="Class chat" hidden>
+          <h3><i class="fa-solid fa-comments"></i> Class chat <span class="presentation-live-count" data-presentation-feedback-count="questions" hidden></span><button type="button" class="presentation-feedback-close" data-presentation-chat-hide aria-label="Close chat pane" title="Close chat pane"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></h3>
+          <div class="presentation-question-feedback-content" data-presentation-question-feedback></div>
+        </section>
       </div>
       <footer class="presentation-viewer-controls"><span data-presentation-slide-count aria-live="polite"></span><span class="presentation-viewer-feedback" data-presentation-feedback role="status" aria-live="polite"></span></footer>
       </div>`;

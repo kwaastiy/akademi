@@ -1252,6 +1252,7 @@ final class PresentationSimulationService
         }
         $rows = array_reverse($statement->fetchAll(PDO::FETCH_ASSOC));
         return array_map(static fn(array $row): array => [
+            'peer_id' => $peerId,
             'sender_name' => (bool)$row['from_teacher']
                 ? 'Teacher'
                 : ($row['sender_hash'] !== null && hash_equals($participantHash, (string)$row['sender_hash'])
