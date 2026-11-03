@@ -9,6 +9,7 @@
   const pagination = document.getElementById("users-pagination");
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const canManageRoles = root.dataset.canManageRoles === "1";
+  const currentUserId = Number(root.dataset.currentUserId);
   let currentPage = 1;
 
   function escapeHtml(value) {
@@ -58,25 +59,29 @@
       superadmin: "Super Admin"
     })[role] || role);
     const protectedAccount = user.roles.includes("superadmin");
+    const isCurrentUser = user.id === currentUserId;
     const adminTarget = user.roles.includes("admin");
     const canEditStatus = user.status === "active" || user.status === "suspended";
-    const canEditTarget = !protectedAccount && (canManageRoles || (!adminTarget && user.roles.includes("teacher")));
+    const canEditTarget = !protectedAccount && !isCurrentUser && (canManageRoles || (!adminTarget && user.roles.includes("teacher")));
     const nextStatus = user.status === "active" ? "suspended" : "active";
-    const statusControl = canEditTarget && canEditStatus
-      ? `<button type="button" class="auth-secondary compact-button" data-user-action="status" data-user-id="${user.id}" data-next-status="${nextStatus}">${nextStatus === "active" ? "Reactivate" : "Suspend"}</button>`
+    const statusControl = !protectedAccount && !isCurrentUser && canEditStatus
+      ? `<button type="button" class="auth-secondary compact-button" data-user-action="status" data-user-id="${user.id}" data-next-status="${nextStatus}">${nextStatus === "active" ? "Enable account" : "Disable account"}</button>`
       : "";
-    const roleControl = canManageRoles && !protectedAccount && user.roles.includes("teacher")
+    const deleteControl = !protectedAccount && !isCurrentUser && user.status === "pending" && !user.email_verified_at
+      ? `<button type="button" class="auth-secondary compact-button" data-user-action="delete" data-user-id="${user.id}" data-user-email="${escapeHtml(user.email)}">Delete unverified account</button>`
+      : "";
+    const roleControl = canManageRoles && !protectedAccount && !isCurrentUser && user.roles.includes("teacher")
       ? `<div class="user-role-control"><label for="user-role-${user.id}">Administrator access</label><select id="user-role-${user.id}" data-user-role="${user.id}"><option value="teacher" ${adminTarget ? "" : "selected"}>Teacher</option><option value="admin" ${adminTarget ? "selected" : ""}>Teacher + Administrator</option></select><button type="button" class="auth-secondary compact-button" data-user-action="role" data-user-id="${user.id}">Save role</button></div>`
       : "";
     const passwordControl = canEditTarget
       ? `<button type="button" class="auth-secondary compact-button" data-user-action="password" data-user-id="${user.id}" data-user-name="${escapeHtml(user.display_name)}">Reset password</button>`
       : "";
-    const hasActions = Boolean(statusControl || roleControl || passwordControl);
+    const hasActions = Boolean(statusControl || deleteControl || roleControl || passwordControl);
     const actions = hasActions
-      ? `<div class="user-actions"><button type="button" class="auth-secondary compact-button user-actions-trigger" data-user-actions-toggle="${user.id}" aria-expanded="false" aria-controls="user-actions-${user.id}">Actions <span aria-hidden="true">▾</span></button><div class="user-actions-menu" id="user-actions-${user.id}" popover="auto" aria-label="Actions for ${escapeHtml(user.display_name)}">${statusControl}${roleControl}${passwordControl}</div></div>`
-      : protectedAccount ? '<small class="protected-user-note">Protected account</small>' : '<small class="protected-user-note">No actions available</small>';
+      ? `<div class="user-actions"><button type="button" class="auth-secondary compact-button user-actions-trigger" data-user-actions-toggle="${user.id}" aria-expanded="false" aria-controls="user-actions-${user.id}">Actions <span aria-hidden="true">▾</span></button><div class="user-actions-menu" id="user-actions-${user.id}" popover="auto" aria-label="Actions for ${escapeHtml(user.display_name)}">${statusControl}${deleteControl}${roleControl}${passwordControl}</div></div>`
+      : protectedAccount ? '<small class="protected-user-note">Protected account</small>' : isCurrentUser ? '<small class="protected-user-note">Your account</small>' : '<small class="protected-user-note">No actions available</small>';
     return `<tr>
-      <td data-label="User"><strong>${escapeHtml(user.display_name)}</strong><small>${escapeHtml(user.email)}</small><small>Account #${user.id}</small></td>
+      <td data-label="User"><strong>${escapeHtml(user.display_name)}${isCurrentUser ? " (you)" : ""}</strong><small>${escapeHtml(user.email)}</small><small>Account #${user.id}</small></td>
       <td data-label="School / region">${escapeHtml(user.school_name || "Not provided")}<small>${escapeHtml(user.region || "")}</small></td>
       <td data-label="Status"><span class="user-status user-status-${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
       <td data-label="Roles"><span class="user-role-list">${roleLabels.map(escapeHtml).join(", ") || "No assigned role"}</span></td>
@@ -171,11 +176,22 @@
         button.disabled = false;
         show("The user's password was reset and active sessions were revoked.", true);
         return;
+      } else if (button.dataset.userAction === "delete") {
+        const email = button.dataset.userEmail;
+        if (!window.confirm(`Delete the unverified account for ${email}? This removes its profile and verification codes and frees the email address to register again.`)) {
+          button.disabled = false;
+          return;
+        }
+        await request(`${root.dataset.apiUrl}/${button.dataset.userId}`, "DELETE", {});
+        button.closest("[popover]")?.hidePopover();
+        show("The unverified account was deleted. Its email address can now be used to register again.", true);
+        await load(currentPage);
+        return;
       } else if (button.dataset.userAction === "status") {
         const status = button.dataset.nextStatus;
         const confirmed = window.confirm(status === "suspended"
-          ? "Suspend this account? The user will be signed out and will not be able to access Akademi."
-          : "Reactivate this account? The user will need to sign in again.");
+          ? "Disable this account? The user will be signed out and will not be able to access Akademi."
+          : "Enable this account? The user will need to sign in again.");
         if (!confirmed) {
           button.disabled = false;
           return;

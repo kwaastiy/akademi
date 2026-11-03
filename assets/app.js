@@ -2020,13 +2020,16 @@
         teaching_points: manualLines("points").join("\n"),
         presentation_visual_data: values.visualData || "",
         presentation_lecture_notes: values.lectureNotes || "",
+        presentation_detailed_notes: values.detailedNotes === "on",
         number_of_slides: Number(values.slides),
         teacher_instructions: [
           `Use a ${templateNames[values.template] || templateNames.lesson} structure.`,
           selectedWeeks.length && "Cover every selected weekly section across the presentation; use the selected_week_sections data as the source of the week-by-week scope.",
           values.lectureNotes && "Place the teacher's supplied lecture notes in the private presenter_notes field across the slides. Do not copy presenter notes into student-facing slide content.",
           "Keep the outline editable, age-appropriate, classroom-ready, and grounded in the supplied topics and teacher-editable outcomes, indicators and teaching points. Do not invent official curriculum wording.",
-          "Include concise lecture notes in each slide's private presenter_notes field. Incorporate supplied teacher notes, and never place presenter notes in student-facing slide content."
+          values.detailedNotes === "on"
+            ? "Write detailed teacher-only presenter_notes for every slide, about 120-180 words each. Format them as skimmable plain text with these labeled sections separated by blank lines: TEACHING FOCUS, EXPLAIN IT, CLASSROOM EXAMPLE, ASK LEARNERS, and WATCH FOR. Use short paragraphs; put each learner question on its own line with a bullet. Explain concepts clearly, connect to the key points and selected curriculum scope, anticipate likely misconceptions, and give practical teacher prompts. Use supplied teacher notes as context, but do not quote or repeat them; the app appends those notes. Keep student-facing slide content concise and never put presenter notes there."
+            : "Include concise teacher-only presenter_notes in each slide. Use the labels TEACHING FOCUS, EXPLAIN IT, ASK LEARNERS, and WATCH FOR, separated by blank lines; use a short paragraph and put each learner question on its own line with a bullet. Use supplied teacher notes as context, but do not quote or repeat them because the app appends them. Never place presenter notes in student-facing slide content."
         ].filter(Boolean).join("\n")
       });
     }
@@ -6259,7 +6262,7 @@
       <label class="field"><span>Slide title <b>*</b></span><input data-slide-field="title" required value="${escapeHtml(slide.title || "")}"></label>
       <label class="field"><span>Key points · one per line <b>*</b></span><textarea data-slide-field="key_points" rows="4" required>${escapeHtml(Array.isArray(slide.key_points) ? slide.key_points.join("\n") : "")}</textarea></label>
       <label class="field"><span>Classroom activity</span><textarea data-slide-field="activity" rows="2">${escapeHtml(slide.activity || "")}</textarea></label>
-      <label class="field"><span>Teacher-only presenter notes</span><textarea data-slide-field="presenter_notes" rows="3">${escapeHtml(slide.presenter_notes || slide.speaker_notes || slide.notes || "")}</textarea></label>
+      <label class="field"><span>Teacher-only presenter notes</span><textarea data-slide-field="presenter_notes" rows="8">${escapeHtml(slide.presenter_notes || slide.speaker_notes || slide.notes || "")}</textarea></label>
       <section class="slide-visual-tools" aria-label="Replace slide visual">
         <label class="field"><span>Visual style</span><select data-slide-field="visual-format">
           <option value="auto"${selectedFormat === "auto" ? " selected" : ""}>AI chooses a relevant visual</option>
@@ -6952,8 +6955,8 @@
           <button type="button" class="presentation-stage-nav presentation-stage-nav-next" data-presentation-stage-next aria-label="Next slide or reveal" title="Next slide or reveal"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
         </div>
         <aside class="presentation-presenter-notes" data-presentation-notes hidden>
-          <label>Private presenter notes<textarea data-presentation-notes-input rows="12" placeholder="Only you can see these notes."></textarea></label>
-          <p>Notes are private to this presenter and are never sent to student devices.</p>
+          <label>Private presenter notes<textarea data-presentation-notes-input rows="24" placeholder="Teaching focus, explanation, example, questions and misconceptions. Only you can see these notes."></textarea></label>
+          <p>Formatted teaching notes are private to this presenter and are never sent to student devices.</p>
         </aside>
         <section class="presentation-feedback-card presentation-question-live-feedback" data-presentation-question-live-feedback aria-label="Class chat" hidden>
           <h3><i class="fa-solid fa-comments"></i> Class chat <span class="presentation-live-count" data-presentation-feedback-count="questions" hidden></span><button type="button" class="presentation-feedback-close" data-presentation-chat-hide aria-label="Close chat pane" title="Close chat pane"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></h3>
@@ -8408,7 +8411,7 @@
       `<div class="document-section"><h3>Learning outcomes</h3><ul>${(data.learning_outcomes || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`,
       `<div class="document-section"><h3>Learning indicators</h3><ul>${(data.learning_indicators || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul><p>Source-recorded targets are included where available; any additional suggestions are teacher drafts and are not represented as official curriculum wording.</p></div>`,
       `<div class="document-section"><h3>Presentation preview · ${escapeHtml(templateLabels[data.template] || templateLabels.lesson)}</h3><p>PowerPoint design: ${escapeHtml(visualThemeLabels[data.visual_theme] || visualThemeLabels.modern)}. Slides can combine editable charts and diagrams with uploaded images. Review the visual on each slide before presenting.</p><div class="presentation-preview-grid">${outline}</div></div>`,
-      ...(speakerNotes.length ? [`<div class="document-section"><h3>Teacher lecture notes · private</h3><ol>${speakerNotes.map(({ index, notes }) => `<li><strong>Slide ${index + 1}:</strong> ${escapeHtml(notes)}</li>`).join("")}</ol><p>These notes are for the teacher and are not shared on student presentation screens.</p></div>`] : [])
+      ...(speakerNotes.length ? [`<div class="document-section"><h3>Teacher lecture notes · private</h3><ol class="presentation-private-notes-list">${speakerNotes.map(({ index, notes }) => `<li><strong>Slide ${index + 1}:</strong><div class="presentation-private-note-copy">${escapeHtml(notes).replace(/\r?\n/g, "<br>")}</div></li>`).join("")}</ol><p>These notes are for the teacher and are not shared on student presentation screens.</p></div>`] : [])
     ];
     return documentFrame(
       data.title,

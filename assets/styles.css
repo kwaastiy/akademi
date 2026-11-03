@@ -1469,10 +1469,18 @@ html[data-theme="dark"] .reader-download { color: var(--brand-primary); }
 .slides-week-option span span { color: var(--ink); font-size: 10px; font-weight: 650; line-height: 1.4; }
 .slides-week-option small, .slides-week-loading, #slides-curriculum-status { color: var(--muted); font-size: 9px; line-height: 1.5; }
 .slides-week-option small { display: block; overflow-wrap: anywhere; }
+.slides-detailed-notes-option { display: flex; grid-column: 1 / -1; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--forest) 4%, var(--paper)); color: var(--ink); cursor: pointer; }
+.slides-detailed-notes-option input { width: 16px; height: 16px; flex: 0 0 auto; margin: 2px 0 0; accent-color: var(--forest); }
+.slides-detailed-notes-option span { display: grid; gap: 4px; }
+.slides-detailed-notes-option strong { font-size: 11px; }
+.slides-detailed-notes-option small { color: var(--muted); font-size: 9px; font-weight: 400; line-height: 1.5; }
 .slides-week-loading { grid-column: 1 / -1; padding: 12px; text-align: center; }
 #slides-curriculum-status { margin: 0; }
 .output-body .document-section > ul { padding-left: 19px; color: var(--ink); font-size: 11px; line-height: 1.65; }
 .output-body .document-section > p { color: var(--muted); font-size: 10px; line-height: 1.6; }
+.presentation-private-notes-list { display: grid; gap: 14px; padding-left: 22px; color: var(--ink); font-size: 12px; }
+.presentation-private-notes-list > li { padding-left: 5px; line-height: 1.5; }
+.presentation-private-note-copy { margin-top: 6px; line-height: 1.75; }
 .presentation-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 14px; margin: 16px 0 8px; }
 .slides-edit-editor { display: grid; gap: 18px; width: min(100%, 1100px); margin: 0 auto; }
 .slides-edit-editor[hidden] { display: none; }
@@ -1587,10 +1595,10 @@ html[data-theme="dark"] .reader-download { color: var(--brand-primary); }
 .presentation-stage-nav-next { right: 10px; }
 .presentation-stage-nav:hover:not(:disabled) { border-color: #70d2ad; background: #244b3b; }
 .presentation-stage-nav:disabled { cursor: not-allowed; opacity: .35; }
-.presentation-presenter-notes { width: min(320px, 30vw); flex: 0 0 min(320px, 30vw); padding: 18px; overflow: auto; border-left: 1px solid rgb(255 255 255 / 14%); background: #18251f; }
-.presentation-presenter-notes label { display: grid; gap: 10px; font-size: 13px; font-weight: 700; }
-.presentation-presenter-notes textarea { width: 100%; min-height: 180px; padding: 10px; border: 1px solid #53665b; border-radius: 7px; background: #101923; color: #f4f7fb; font: inherit; resize: vertical; }
-.presentation-presenter-notes p { color: #b7c7bc; font-size: 11px; line-height: 1.5; }
+.presentation-presenter-notes { width: min(390px, 34vw); flex: 0 0 min(390px, 34vw); padding: 18px; overflow: auto; border-left: 1px solid rgb(255 255 255 / 14%); background: #18251f; }
+.presentation-presenter-notes label { display: grid; gap: 10px; font-size: 14px; font-weight: 750; }
+.presentation-presenter-notes textarea { width: 100%; height: min(58vh, 640px); min-height: min(42vh, 360px); max-height: 72vh; padding: 16px; border: 1px solid #53665b; border-radius: 9px; background: #101923; color: #f4f7fb; font: 14px/1.75 system-ui, sans-serif; letter-spacing: .01em; resize: vertical; }
+.presentation-presenter-notes p { color: #b7c7bc; font-size: 11px; line-height: 1.6; }
 .presentation-teacher-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; max-height: 26vh; padding: 8px 1.5rem; overflow: auto; border-block: 1px solid rgb(255 255 255 / 14%); background: #141f29; }
 .presentation-teacher-toolbar label { display: inline-flex; align-items: center; gap: 6px; color: #d6e5d9; font-size: 11px; }
 .presentation-teacher-toolbar input, .presentation-teacher-toolbar select, .presentation-teacher-toolbar textarea { min-width: 0; max-width: 160px; padding: 5px 7px; border: 1px solid #53665b; border-radius: 5px; background: #101923; color: #f4f7fb; font: inherit; }
@@ -1622,7 +1630,8 @@ html[data-theme="dark"] .reader-download { color: var(--brand-primary); }
   .presentation-viewer-stage { padding: .75rem; }
   .presentation-teacher-toolbar { max-height: 38vh; grid-template-columns: 1fr; padding: 7px; }
   .presentation-viewer-layout:has(.presentation-presenter-notes:not([hidden])) { flex-direction: column; }
-  .presentation-presenter-notes { width: 100%; flex: 0 0 auto; max-height: 26vh; border-top: 1px solid rgb(255 255 255 / 14%); border-left: 0; }
+  .presentation-presenter-notes { width: 100%; flex: 0 0 auto; max-height: 48vh; border-top: 1px solid rgb(255 255 255 / 14%); border-left: 0; }
+  .presentation-presenter-notes textarea { height: 38vh; min-height: min(34vh, 300px); max-height: 42vh; padding: 12px; font-size: 13px; }
 }
 .presentation-viewer-header { flex: 0 0 auto; min-height: 48px; gap: 8px; padding: 5px 12px; }
 .presentation-viewer-title { max-width: 16vw; flex: 0 1 auto; overflow: hidden; color: #eaf2ed; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }

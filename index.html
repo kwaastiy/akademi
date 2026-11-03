@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/notifications.css?v=22">
-  <link rel="stylesheet" href="assets/styles.css?v=165">
+  <link rel="stylesheet" href="assets/styles.css?v=168">
   <link rel="stylesheet" href="assets/fontawesome/css/fontawesome.min.css">
   <link rel="stylesheet" href="assets/fontawesome/css/solid.min.css">
   <link rel="stylesheet" href="assets/action-icons.css">
@@ -467,6 +467,7 @@
               <label class="field field-wide"><span>Learning indicators · one per line</span><textarea name="indicators" rows="3" placeholder="Indicators linked to selected curriculum weeks; add your own"></textarea></label>
               <label class="field field-wide"><span>Key teaching points · one per line</span><textarea name="points" required rows="5" placeholder="Auto-generated from selected topics and focal areas. Add, edit or remove points."></textarea></label>
               <label class="field field-wide"><span>Lecture notes · one per line</span><textarea name="lectureNotes" rows="4" placeholder="Add teacher-only explanations, examples, prompts or reminders. Notes are not shown to students."></textarea><small class="field-help">Notes are distributed across the slides and remain private in presenter view.</small></label>
+              <label class="slides-detailed-notes-option"><input name="detailedNotes" type="checkbox"><span><strong>Generate detailed teaching notes</strong><small>Ask AI for a fuller teacher explanation on every slide, including examples, likely misconceptions and discussion prompts. Notes remain private in presenter view and PowerPoint speaker notes.</small></span></label>
               <label class="field field-wide"><span>Data for a chart or table · optional</span><textarea name="visualData" rows="3" placeholder="Add a header row and data rows, separating columns with |&#10;Example: Category | Value&#10;Group A | 12&#10;Group B | 18"></textarea><small class="field-help">Charts and tables use the values you provide. The app will not invent real-world statistics.</small></label>
             </div>
             <div class="form-footer"><span class="save-note">Curriculum-derived suggestions are editable and should be reviewed. AI generation is optional.</span><div class="form-actions"><button type="button" class="button button-quiet" data-ai-generate="slides">Generate with AI</button><button type="submit" class="button button-primary">Build slide outline <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#fa-chevron-right"></use></svg></button></div></div>
@@ -551,11 +552,11 @@
   <script src="assets/theme.js?v=2" defer></script>
   <script src="assets/notifications.js?v=23" defer></script>
   <script src="assets/progress.js?v=6" defer></script>
-  <script src="assets/assessment-export.js?v=44" defer></script>
+  <script src="assets/assessment-export.js?v=57" defer></script>
   <script src="assets/assessment-rendering.js?v=3" defer></script>
   <script src="assets/auth.js?v=23" defer></script>
   <script src="assets/action-icons.js?v=1" defer></script>
-  <script src="assets/app.js?v=236" defer></script>
+  <script src="assets/app.js?v=239" defer></script>
   <script src="assets/curriculum-docx-renderer.js?v=1" defer></script>
   <script src="assets/curriculum-resource-reader.js?v=10" defer></script>
   <script src="assets/curriculum-resources.js?v=3" defer></script>

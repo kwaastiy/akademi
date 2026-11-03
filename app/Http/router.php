@@ -1890,6 +1890,18 @@ try {
         json_response($result);
     }
 
+    if (preg_match('#^/api/admin/users/([1-9][0-9]*)$#D', $path, $matches) && $method === 'DELETE') {
+        Csrf::verifyRequest();
+        $user = require_user($auth);
+        if (array_intersect($user['roles'], ['admin', 'superadmin']) === []) {
+            throw new RuntimeException('You do not have permission to delete user accounts.', 403);
+        }
+        json_response((new \Akademi\Services\UserManagementService())->deleteUnverified(
+            (int)$matches[1],
+            $user
+        ));
+    }
+
     if (preg_match('#^/api/admin/users/([1-9][0-9]*)$#D', $path, $matches) && $method === 'PUT') {
         Csrf::verifyRequest();
         $user = require_user($auth);

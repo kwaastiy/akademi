@@ -20,17 +20,11 @@ final class UserManagementService
         $parameters = [];
         $where = [];
         if (!in_array('superadmin', $actor['roles'], true)) {
-            $where[] = "EXISTS (
-                SELECT 1 FROM user_roles actor_target
-                JOIN roles actor_role ON actor_role.id = actor_target.role_id
-                WHERE actor_target.user_id = u.id AND actor_role.slug = 'teacher'
-            ) AND NOT EXISTS (
+            $where[] = "NOT EXISTS (
                 SELECT 1 FROM user_roles protected_target
                 JOIN roles protected_role ON protected_role.id = protected_target.role_id
-                WHERE protected_target.user_id = u.id AND protected_role.slug IN ('admin', 'superadmin')
+                WHERE protected_target.user_id = u.id AND protected_role.slug = 'superadmin'
             )";
-            $where[] = 'u.id <> :actor_id';
-            $parameters['actor_id'] = (int)$actor['id'];
         }
         if ($status !== '') {
             $where[] = 'u.status = :status';
@@ -87,6 +81,9 @@ final class UserManagementService
 
     public function update(int $targetUserId, array $input, array $actor): array
     {
+        if (array_intersect(['admin', 'superadmin'], $actor['roles']) === []) {
+            throw new RuntimeException('You do not have permission to manage user accounts.', 403);
+        }
         $status = $input['status'] ?? null;
         $requestedRoles = $input['roles'] ?? null;
         if ($status !== null && !in_array($status, ['active', 'suspended'], true)) {
@@ -115,12 +112,15 @@ final class UserManagementService
         $pdo->beginTransaction();
         try {
             $lookup = $pdo->prepare(
-                'SELECT id, status FROM users WHERE id = :id FOR UPDATE'
+                'SELECT id, status, email_verified_at FROM users WHERE id = :id FOR UPDATE'
             );
             $lookup->execute(['id' => $targetUserId]);
             $target = $lookup->fetch();
             if (!$target || $target['status'] === 'deleted') {
                 throw new RuntimeException('The selected account was not found or has been deleted.', 404);
+            }
+            if ($status !== null && $target['email_verified_at'] === null) {
+                throw new RuntimeException('Only verified accounts can be enabled or disabled.', 422);
             }
             $roleLookup = $pdo->prepare(
                 'SELECT r.slug FROM user_roles ur
@@ -130,9 +130,6 @@ final class UserManagementService
             $currentRoles = $roleLookup->fetchAll(\PDO::FETCH_COLUMN);
             if (in_array('superadmin', $currentRoles, true)) {
                 throw new RuntimeException('Super Admin accounts are protected from user-management changes.', 403);
-            }
-            if (!$isSuperAdmin && (!in_array('teacher', $currentRoles, true) || in_array('admin', $currentRoles, true))) {
-                throw new RuntimeException('Administrators can manage teacher accounts only.', 403);
             }
             if ($roles !== null && $status !== null && !in_array('teacher', $currentRoles, true)) {
                 throw new RuntimeException('Only teacher accounts can be assigned Administrator access here.', 422);
@@ -188,6 +185,74 @@ final class UserManagementService
         }
 
         return ['updated' => true, 'user_id' => $targetUserId];
+    }
+
+    public function deleteUnverified(int $targetUserId, array $actor): array
+    {
+        if ($targetUserId === (int)$actor['id']) {
+            throw new RuntimeException('You cannot delete your own account from user management.', 403);
+        }
+        if (array_intersect(['admin', 'superadmin'], $actor['roles']) === []) {
+            throw new RuntimeException('You do not have permission to delete user accounts.', 403);
+        }
+
+        $pdo = Connection::get();
+        $pdo->beginTransaction();
+        try {
+            $lookup = $pdo->prepare(
+                'SELECT id, status, email_verified_at FROM users WHERE id = :id FOR UPDATE'
+            );
+            $lookup->execute(['id' => $targetUserId]);
+            $target = $lookup->fetch();
+            if (!$target || $target['status'] === 'deleted') {
+                throw new RuntimeException('The selected account was not found or has been deleted.', 404);
+            }
+            if ($target['status'] !== 'pending' || $target['email_verified_at'] !== null) {
+                throw new RuntimeException('Only accounts pending email verification can be deleted here.', 422);
+            }
+
+            $roleLookup = $pdo->prepare(
+                'SELECT r.slug FROM user_roles ur
+                 JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = :id'
+            );
+            $roleLookup->execute(['id' => $targetUserId]);
+            if (in_array('superadmin', $roleLookup->fetchAll(\PDO::FETCH_COLUMN), true)) {
+                throw new RuntimeException('Super Admin accounts are protected from user-management changes.', 403);
+            }
+
+            $pdo->prepare(
+                "UPDATE users
+                 SET status = 'deleted', deleted_at = UTC_TIMESTAMP(),
+                     display_name = 'Deleted user',
+                     email = CONCAT('deleted+', id, '@deleted.invalid'),
+                     password_hash = NULL, updated_at = UTC_TIMESTAMP()
+                 WHERE id = :id"
+            )->execute(['id' => $targetUserId]);
+            $pdo->prepare(
+                'UPDATE user_sessions SET revoked_at = UTC_TIMESTAMP()
+                 WHERE user_id = :id AND revoked_at IS NULL'
+            )->execute(['id' => $targetUserId]);
+            $pdo->prepare('DELETE FROM user_profiles WHERE user_id = :id')->execute(['id' => $targetUserId]);
+            $pdo->prepare('DELETE FROM email_verification_codes WHERE user_id = :id')->execute(['id' => $targetUserId]);
+            $pdo->prepare('DELETE FROM user_roles WHERE user_id = :id')->execute(['id' => $targetUserId]);
+            $audit = $pdo->prepare(
+                'INSERT INTO audit_logs (actor_user_id, action_name, target_type, target_id, metadata)
+                 VALUES (:actor, \'user.unverified_account_deleted\', \'user\', :target, :metadata)'
+            );
+            $audit->execute([
+                'actor' => (int)$actor['id'],
+                'target' => (string)$targetUserId,
+                'metadata' => json_encode(['email_verified_at' => null], JSON_THROW_ON_ERROR),
+            ]);
+            $pdo->commit();
+        } catch (\Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
+        }
+
+        return ['deleted' => true, 'user_id' => $targetUserId];
     }
 
     public function resetPassword(int $targetUserId, array $actor): array

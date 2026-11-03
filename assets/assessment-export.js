@@ -2398,18 +2398,18 @@
     const esc = (value) => xmlEscape(value).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
     const W = 9144000;
     const H = 5143500;
-    const themeXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Akademi"><a:themeElements><a:clrScheme name="Akademi"><a:dk1><a:srgbClr val="18352B"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="263238"/></a:dk2><a:lt2><a:srgbClr val="F4F7F5"/></a:lt2><a:accent1><a:srgbClr val="2D6A4F"/></a:accent1><a:accent2><a:srgbClr val="D4A373"/></a:accent2><a:accent3><a:srgbClr val="52796F"/></a:accent3><a:accent4><a:srgbClr val="84A98C"/></a:accent4><a:accent5><a:srgbClr val="E9C46A"/></a:accent5><a:accent6><a:srgbClr val="E76F51"/></a:accent6><a:hlink><a:srgbClr val="0000FF"/></a:hlink><a:folHlink><a:srgbClr val="800080"/></a:folHlink></a:clrScheme><a:fontScheme name="Akademi"><a:majorFont><a:latin typeface="Aptos Display"/></a:majorFont><a:minorFont><a:latin typeface="Aptos"/></a:minorFont></a:fontScheme><a:fmtScheme name="Akademi"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
+    const themeXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Akademi"><a:themeElements><a:clrScheme name="Akademi"><a:dk1><a:srgbClr val="18352B"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="263238"/></a:dk2><a:lt2><a:srgbClr val="F4F7F5"/></a:lt2><a:accent1><a:srgbClr val="2D6A4F"/></a:accent1><a:accent2><a:srgbClr val="D4A373"/></a:accent2><a:accent3><a:srgbClr val="52796F"/></a:accent3><a:accent4><a:srgbClr val="84A98C"/></a:accent4><a:accent5><a:srgbClr val="E9C46A"/></a:accent5><a:accent6><a:srgbClr val="E76F51"/></a:accent6><a:hlink><a:srgbClr val="0000FF"/></a:hlink><a:folHlink><a:srgbClr val="800080"/></a:folHlink></a:clrScheme><a:fontScheme name="Akademi"><a:majorFont><a:latin typeface="Aptos Display"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Aptos"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Akademi"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"/></a:gs><a:gs pos="100000"><a:schemeClr val="phClr"/></a:gs></a:gsLst><a:lin ang="0" scaled="1"/></a:gradFill><a:noFill/></a:fillStyleLst><a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="19050"><a:noFill/><a:prstDash val="solid"/></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"/></a:gs><a:gs pos="100000"><a:schemeClr val="phClr"/></a:gs></a:gsLst><a:lin ang="0" scaled="1"/></a:gradFill><a:noFill/></a:bgFillStyleLst></a:fmtScheme></a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>`;
     const entries = [
       ["[Content_Types].xml", ""],
       ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>'],
       ["ppt/presentation.xml", ""],
       ["ppt/_rels/presentation.xml.rels", ""],
-      ["ppt/slideMasters/slideMaster1.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMap accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" bg1="lt1" bg2="lt2" tx1="dk1" tx2="dk2" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="1" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>'],
+      ["ppt/slideMasters/slideMaster1.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMap accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" bg1="lt1" bg2="lt2" tx1="dk1" tx2="dk2" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>'],
       ["ppt/slideMasters/_rels/slideMaster1.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>'],
       ["ppt/slideLayouts/slideLayout1.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank" preserve="1"><p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>'],
-      ["ppt/slideLayouts/_rels/slideLayout1.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideMasters/slideMaster1.xml"/></Relationships>'],
+      ["ppt/slideLayouts/_rels/slideLayout1.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>'],
       ["ppt/theme/theme1.xml", themeXml],
-      ["ppt/notesMasters/notesMaster1.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:notesMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr><p:notesStyle/></p:notesMaster>'],
+      ["ppt/notesMasters/notesMaster1.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:notesMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldImg" idx="2"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp><p:sp><p:nvSpPr><p:cNvPr id="3" name="Notes Placeholder"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="3" sz="quarter"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="4" name="Slide Number Placeholder"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldNum" idx="5" sz="quarter"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp></p:spTree></p:cSld><p:clrMap accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" bg1="lt1" bg2="lt2" tx1="dk1" tx2="dk2" hlink="hlink" folHlink="folHlink"/><p:notesStyle/></p:notesMaster>`],
       ["ppt/notesMasters/_rels/notesMaster1.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>']
     ];
     const shape = (id, name, x, y, cx, cy, text = "", options = {}) => {
@@ -2434,9 +2434,23 @@
       `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Uploaded slide image ${slideIndex + 1}" descr="${esc(alt || "Teacher-uploaded slide image")}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId3"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${Math.round(x)}" y="${Math.round(y)}"/><a:ext cx="${Math.max(1, Math.round(cx))}" cy="${Math.max(1, Math.round(cy))}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
     const addSlide = (slide, slideIndex) => {
       const shapes = [];
+      const animationSteps = [];
       let id = 2;
-      const add = (...args) => shapes.push(shape(id++, ...args));
-      const line = (...args) => shapes.push(connector(id++, ...args));
+      const add = (...args) => {
+        const shapeId = id++;
+        shapes.push(shape(shapeId, ...args));
+        return shapeId;
+      };
+      const addReveal = (...args) => {
+        const shapeId = add(...args);
+        animationSteps.push([shapeId]);
+        return shapeId;
+      };
+      const line = (...args) => {
+        const shapeId = id++;
+        shapes.push(connector(shapeId, ...args));
+        return shapeId;
+      };
       add("Background", 0, 0, W, H, "", { fill: background });
       add("Top accent", 0, 0, W, 100000, "", { fill: accent });
       add("Course", 520000, 230000, 5900000, 270000, `${String(data.subject || "CLASSROOM PRESENTATION").toLocaleUpperCase()}  ·  ${String(data.year || data.year_group || "").toLocaleUpperCase()}`, { size: 1050, bold: true, color: accent });
@@ -2454,8 +2468,9 @@
       const pointGap = Math.min(510000, Math.floor(2100000 / displayPoints.length));
       displayPoints.forEach((point, pointIndex) => {
         const y = leftY + 460000 + pointIndex * pointGap;
-        add(`Point marker ${pointIndex + 1}`, leftX + 180000, y + 80000, 95000, 95000, "", { fill: secondary, geometry: "ellipse" });
-        add(`Key point ${pointIndex + 1}`, leftX + 350000, y, leftW - 520000, pointGap - 30000, point, { size: 1420, color: ink, anchor: "t", padding: 18000 });
+        const markerId = add(`Point marker ${pointIndex + 1}`, leftX + 180000, y + 80000, 95000, 95000, "", { fill: secondary, geometry: "ellipse" });
+        const textId = add(`Key point ${pointIndex + 1}`, leftX + 350000, y, leftW - 520000, pointGap - 30000, point, { size: 1420, color: ink, anchor: "t", padding: 18000 });
+        animationSteps.push([markerId, textId]);
       });
 
       add("Visual panel", rightX, rightY, rightW, panelH, "", { fill: surface, geometry: "roundRect", outline: pale });
@@ -2495,14 +2510,18 @@
         const tableRows = [headers, ...rows].filter((row) => row.length);
         const columns = Math.max(1, headers.length, ...tableRows.map((row) => row.length));
         const cellW = Math.floor(plotW / columns), cellH = Math.floor(plotH / Math.max(tableRows.length, 1));
-        tableRows.forEach((row, r) => row.slice(0, columns).forEach((cell, c) => {
-          add(`Table cell ${r}-${c}`, plotX + c * cellW, plotY + r * cellH, cellW, cellH, String(cell), {
+        tableRows.forEach((row, r) => {
+          const rowShapeIds = [];
+          row.slice(0, columns).forEach((cell, c) => {
+            rowShapeIds.push(add(`Table cell ${r}-${c}`, plotX + c * cellW, plotY + r * cellH, cellW, cellH, String(cell), {
             size: r === 0 && headers.length ? 1000 : 900, bold: r === 0 && headers.length,
             color: r === 0 && headers.length ? "FFFFFF" : ink,
             fill: r === 0 && headers.length ? accent : r % 2 ? pale : surface,
             outline: background, padding: 45000
+            }));
           });
-        }));
+          if (rowShapeIds.length) animationSteps.push(rowShapeIds);
+        });
       } else if (visualType === "bar_chart" || visualType === "chart") {
         const labels = Array.isArray(visual.labels) ? visual.labels.map(String).slice(0, 8) : [];
         const values = Array.isArray(visual.values) ? visual.values.slice(0, labels.length).map(Number) : [];
@@ -2521,9 +2540,11 @@
             const barW = Math.min(430000, slot * 0.58);
             const x = plotX + 350000 + i * slot + (slot - barW) / 2;
             const y = value >= 0 ? zeroY - barH : zeroY;
-            add(`Bar ${i + 1}`, x, y, barW, barH, "", { fill: i % 2 ? secondary : accent, geometry: "roundRect" });
-            add(`Bar value ${i + 1}`, x - 70000, y - 170000, barW + 140000, 140000, String(value), { size: 850, bold: true, color: ink, align: "ctr" });
-            add(`Bar label ${i + 1}`, plotX + 350000 + i * slot, bottom + 80000, slot, 230000, labels[i], { size: 780, color: muted, align: "ctr", anchor: "t" });
+            animationSteps.push([
+              add(`Bar ${i + 1}`, x, y, barW, barH, "", { fill: i % 2 ? secondary : accent, geometry: "roundRect" }),
+              add(`Bar value ${i + 1}`, x - 70000, y - 170000, barW + 140000, 140000, String(value), { size: 850, bold: true, color: ink, align: "ctr" }),
+              add(`Bar label ${i + 1}`, plotX + 350000 + i * slot, bottom + 80000, slot, 230000, labels[i], { size: 780, color: muted, align: "ctr", anchor: "t" })
+            ]);
           });
           if (visual.value_label) add("Value unit", plotX, plotY + plotH - 220000, plotW, 120000, String(visual.value_label), { size: 800, color: muted, align: "r" });
         } else add("Chart data guidance", plotX, plotY + 500000, plotW, 650000, "Add named categories and values to draw a chart.", { size: 1250, color: muted, align: "ctr" });
@@ -2552,16 +2573,18 @@
           for (let tick = 0; tick <= 4; tick++) line(`Graph grid ${tick}`, gx, gy + gh * tick / 4, gx + gw, gy + gh * tick / 4, pale, 9000);
           const graphColors = [accent, secondary, "52796F", "E76F51", "5271A2"];
           validSeries.forEach((series, seriesIndex) => {
+            const seriesShapes = [];
             const color = graphColors[seriesIndex % graphColors.length];
             const plotted = series.points.map(([x, y]) => [gx + (x - minX) / xRange * gw, gy + gh - (y - minY) / yRange * gh]);
-            plotted.slice(1).forEach((point, i) => line(`Graph series ${seriesIndex + 1} segment ${i + 1}`, plotted[i][0], plotted[i][1], point[0], point[1], color, 30000));
-            plotted.forEach(([x, y], i) => add(`Graph series ${seriesIndex + 1} point ${i + 1}`, x - 60000, y - 60000, 120000, 120000, "", { fill: color, geometry: "ellipse" }));
+            plotted.slice(1).forEach((point, i) => seriesShapes.push(line(`Graph series ${seriesIndex + 1} segment ${i + 1}`, plotted[i][0], plotted[i][1], point[0], point[1], color, 30000)));
+            plotted.forEach(([x, y], i) => seriesShapes.push(add(`Graph series ${seriesIndex + 1} point ${i + 1}`, x - 60000, y - 60000, 120000, 120000, "", { fill: color, geometry: "ellipse" })));
             if (series.name) {
               const legendX = plotX + 350000 + (seriesIndex % 3) * 930000;
               const legendY = plotY + 30000 + Math.floor(seriesIndex / 3) * 140000;
-              add(`Graph legend swatch ${seriesIndex + 1}`, legendX, legendY + 35000, 70000, 35000, "", { fill: color });
-              add(`Graph legend label ${seriesIndex + 1}`, legendX + 95000, legendY, 780000, 110000, series.name, { size: 750, color: muted, padding: 0 });
+              seriesShapes.push(add(`Graph legend swatch ${seriesIndex + 1}`, legendX, legendY + 35000, 70000, 35000, "", { fill: color }));
+              seriesShapes.push(add(`Graph legend label ${seriesIndex + 1}`, legendX + 95000, legendY, 780000, 110000, series.name, { size: 750, color: muted, padding: 0 }));
             }
+            if (seriesShapes.length) animationSteps.push(seriesShapes);
           });
           add("Graph x axis", gx, gy + gh + 100000, gw, 190000, String(visual.x_label || "x"), { size: 850, color: muted, align: "ctr" });
           add("Graph y axis", plotX, gy + 300000, 300000, 180000, String(visual.y_label || "y"), { size: 850, color: muted, align: "ctr" });
@@ -2579,6 +2602,7 @@
           const px = (value) => gx + offsetX + (value - xMin) * scale;
           const py = (value) => gy + offsetY + (yMax - value) * scale;
           const geometryColors = [accent, "D4A373", "52796F", "E76F51", "5271A2", "6A994E", "BC6C25", "7B2CBF"];
+          const geometryRevealGroups = shapesForDiagram.map(() => []);
           for (let tick = 0; tick <= 4; tick++) {
             const x = gx + offsetX + contentW * tick / 4;
             const y = gy + offsetY + contentH * tick / 4;
@@ -2595,18 +2619,18 @@
               const center = Array.isArray(item.center) ? item.center.map(Number) : [];
               const radii = item.shape === "circle" ? [Number(item.radius), Number(item.radius)] : (Array.isArray(item.radii) ? item.radii.map(Number) : []);
               if (center.length !== 2 || radii.length !== 2 || ![...center, ...radii].every(Number.isFinite) || radii.some((value) => value <= 0)) return;
-              add(`Geometry ${item.shape} ${index + 1}`, px(center[0] - radii[0]), py(center[1] + radii[1]), 2 * radii[0] * scale, 2 * radii[1] * scale, "", { geometry: "ellipse", outline: color });
+              geometryRevealGroups[index].push(add(`Geometry ${item.shape} ${index + 1}`, px(center[0] - radii[0]), py(center[1] + radii[1]), 2 * radii[0] * scale, 2 * radii[1] * scale, "", { geometry: "ellipse", outline: color }));
             } else if (item.shape === "rectangle") {
               const left = Number(item.x_min), right = Number(item.x_max), bottom = Number(item.y_min), top = Number(item.y_max);
               if (![left, right, bottom, top].every(Number.isFinite) || left >= right || bottom >= top) return;
-              add(`Geometry rectangle ${index + 1}`, px(left), py(top), (right - left) * scale, (top - bottom) * scale, "", { outline: color });
+              geometryRevealGroups[index].push(add(`Geometry rectangle ${index + 1}`, px(left), py(top), (right - left) * scale, (top - bottom) * scale, "", { outline: color }));
             } else if (item.shape === "line" || item.shape === "triangle") {
               const points = Array.isArray(item.points) ? item.points : [];
               const required = item.shape === "line" ? 2 : 3;
               if (points.length !== required || points.some((point) => !Array.isArray(point) || point.length !== 2 || point.some((value) => !Number.isFinite(Number(value))))) return;
               const plotted = points.map(([x, y]) => [px(Number(x)), py(Number(y))]);
-              plotted.slice(1).forEach((point, pointIndex) => line(`Geometry ${item.shape} ${index + 1} segment ${pointIndex + 1}`, plotted[pointIndex][0], plotted[pointIndex][1], point[0], point[1], color, 25000));
-              if (item.shape === "triangle") line(`Geometry triangle ${index + 1} close`, plotted[2][0], plotted[2][1], plotted[0][0], plotted[0][1], color, 25000);
+              plotted.slice(1).forEach((point, pointIndex) => geometryRevealGroups[index].push(line(`Geometry ${item.shape} ${index + 1} segment ${pointIndex + 1}`, plotted[pointIndex][0], plotted[pointIndex][1], point[0], point[1], color, 25000)));
+              if (item.shape === "triangle") geometryRevealGroups[index].push(line(`Geometry triangle ${index + 1} close`, plotted[2][0], plotted[2][1], plotted[0][0], plotted[0][1], color, 25000));
             } else if (item.shape === "parabola") {
               const coefficients = Array.isArray(item.coefficients) ? item.coefficients.map(Number) : [];
               const from = Number(item.x_min), to = Number(item.x_max);
@@ -2626,7 +2650,9 @@
                 const c2 = [localX(x1) - dx, localY(y1) + (2 * a * x1 + b) * (x1 - x0) * scale / 3];
                 commands += `<a:cubicBezTo><a:pt x="${Math.round(c1[0])}" y="${Math.round(c1[1])}"/><a:pt x="${Math.round(c2[0])}" y="${Math.round(c2[1])}"/><a:pt x="${Math.round(localX(x1))}" y="${Math.round(localY(y1))}"/></a:cubicBezTo>`;
               }
-              shapes.push(pathShape(id++, `Geometry parabola ${index + 1}`, gx, gy, gw, gh, commands, color));
+              const shapeId = id++;
+              shapes.push(pathShape(shapeId, `Geometry parabola ${index + 1}`, gx, gy, gw, gh, commands, color));
+              geometryRevealGroups[index].push(shapeId);
             }
           });
           if (visual.x_label) add("Geometry x label", gx + offsetX, gy + offsetY + contentH + 120000, contentW, 180000, String(visual.x_label), { size: 800, color: muted, align: "ctr" });
@@ -2636,8 +2662,13 @@
             const legendX = gx + column * cellW, legendY = gy + gh + 320000 + row * 115000;
             const color = geometryColors[index % geometryColors.length];
             const label = String(item.label || `Shape ${index + 1}`).replace(/\s+/g, " ").slice(0, 22);
-            add(`Geometry legend swatch ${index + 1}`, legendX, legendY + 35000, 55000, 55000, "", { fill: color });
-            add(`Geometry legend label ${index + 1}`, legendX + 70000, legendY, cellW - 80000, 130000, label, { size: 750, color: muted, padding: 0 });
+            geometryRevealGroups[index].push(
+              add(`Geometry legend swatch ${index + 1}`, legendX, legendY + 35000, 55000, 55000, "", { fill: color }),
+              add(`Geometry legend label ${index + 1}`, legendX + 70000, legendY, cellW - 80000, 130000, label, { size: 750, color: muted, padding: 0 })
+            );
+          });
+          geometryRevealGroups.forEach((group) => {
+            if (group.length) animationSteps.push(group);
           });
         } else add("Geometry guidance", plotX, plotY + 500000, plotW, 650000, "Add labelled coordinate bounds and shapes to draw this diagram.", { size: 1250, color: muted, align: "ctr" });
       } else if (["process", "timeline", "cards", "comparison"].includes(visualType)) {
@@ -2649,7 +2680,7 @@
           const x = vertical ? plotX + 50000 : plotX + i * (cardW + 80000);
           const y = vertical ? plotY + i * (cardH + 60000) : plotY + 300000;
           if (i && !vertical) add(`Flow arrow ${i}`, x - 85000, y + cardH / 2 - 50000, 70000, 100000, "›", { size: 1900, bold: true, color: secondary, align: "ctr" });
-          add(`Concept ${i + 1}`, x, y, cardW, cardH, item, { size: 1050, bold: true, fill: i % 2 ? pale : background, outline: pale, geometry: "roundRect", anchor: "ctr", padding: 70000 });
+          addReveal(`Concept ${i + 1}`, x, y, cardW, cardH, item, { size: 1050, bold: true, fill: i % 2 ? pale : background, outline: pale, geometry: "roundRect", anchor: "ctr", padding: 70000 });
         });
         if (!items.length) add("Visual guidance", plotX, plotY + 400000, plotW, 700000, String(slide.visual_suggestion || "Add a labelled visual to support the explanation."), { size: 1200, color: muted, align: "ctr" });
       } else {
@@ -2661,34 +2692,43 @@
         line("Footer rule", 520000, 4580000, 8620000, 4580000, pale, 9000);
         add("Classroom activity", 520000, 4660000, 8120000, 350000, `TRY IT  ·  ${String(slide.activity)}`, { size: 1000, color: muted, padding: 10000 });
       }
-      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${shapes.join("")}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+      return {
+        sourceIndex: slideIndex,
+        xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${shapes.join("")}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr><p:transition spd="med" advClick="1"><p:push dir="l"/></p:transition></p:sld>`
+      };
     };
-    const slideXml = slides.map(addSlide);
-    entries[0][1] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${embeddedImages.size ? '<Default Extension="webp" ContentType="image/webp"/>' : ""}<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/ppt/notesMasters/notesMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"/>${slides.map((_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.slide+xml"/><Override PartName="/ppt/notesSlides/notesSlide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"/>`).join("")}</Types>`;
+    const exportSlideRecords = slides.map((slide, sourceIndex) => ({
+      ...addSlide(slide, sourceIndex),
+      slide
+    }));
+    const slideCount = exportSlideRecords.length;
+    entries[0][1] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${embeddedImages.size ? '<Default Extension="webp" ContentType="image/webp"/>' : ""}<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/ppt/notesMasters/notesMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"/>${exportSlideRecords.map((_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/><Override PartName="/ppt/notesSlides/notesSlide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"/>`).join("")}</Types>`;
     const embeddedContentTypes = [...new Set(embeddedImageTypes.values())].map((extension) => extension === "jpg"
       ? '<Default Extension="jpg" ContentType="image/jpeg"/>'
       : '<Default Extension="webp" ContentType="image/webp"/>').join("");
     entries[0][1] = entries[0][1].replace('<Default Extension="webp" ContentType="image/webp"/>', embeddedContentTypes);
-    entries[2][1] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:notesMasterIdLst><p:notesMasterId r:id="rId${slides.length + 2}"/></p:notesMasterIdLst><p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 2}"/>`).join("")}</p:sldIdLst><p:sldSz cx="${W}" cy="${H}" type="screen16x9"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`;
-    entries[3][1] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i + 1}.xml"/>`).join("")}<Relationship Id="rId${slides.length + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster" Target="notesMasters/notesMaster1.xml"/></Relationships>`;
+    entries[2][1] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:notesMasterIdLst><p:notesMasterId r:id="rId${slideCount + 2}"/></p:notesMasterIdLst><p:sldIdLst>${exportSlideRecords.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 2}"/>`).join("")}</p:sldIdLst><p:sldSz cx="${W}" cy="${H}" type="screen16x9"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`;
+    entries[3][1] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>${exportSlideRecords.map((_, i) => `<Relationship Id="rId${i + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i + 1}.xml"/>`).join("")}<Relationship Id="rId${slideCount + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster" Target="notesMasters/notesMaster1.xml"/></Relationships>`;
     const notesSlideXml = (slide, index) => {
-      const noteText = String(slide.presenter_notes || slide.speaker_notes || slide.notes || "");
+      const topLevelNotes = Array.isArray(data.lecture_notes) ? data.lecture_notes[index] : "";
+      const noteText = String(slide.presenter_notes || slide.speaker_notes || slide.notes
+        || slide.teacher_notes || slide.teaching_notes || slide.lecture_notes || topLevelNotes || "");
       const paragraphs = noteText.split(/\r?\n/).map((line) =>
         `<a:p><a:r><a:rPr lang="en-GH" dirty="0"/><a:t xml:space="preserve">${esc(line)}</a:t></a:r><a:endParaRPr lang="en-GH"/></a:p>`
       ).join("");
-      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:notes xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="Notes Placeholder 1"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="457200"/><a:ext cx="6000000" cy="7500000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>${paragraphs}</p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>`;
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:notes xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder 1"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldImg" idx="2"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp><p:sp><p:nvSpPr><p:cNvPr id="3" name="Notes Placeholder 2"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="3" sz="quarter"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>${paragraphs}</p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="4" name="Slide Number Placeholder 3"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldNum" idx="5" sz="quarter"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>`;
     };
-    slideXml.forEach((content, i) => {
-      const imageRelation = embeddedImages.has(i)
-        ? `<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/slide-image-${i + 1}.${embeddedImageTypes.get(i)}"/>`
+    exportSlideRecords.forEach(({ xml, sourceIndex, slide }, i) => {
+      const imageRelation = embeddedImages.has(sourceIndex)
+        ? `<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/slide-image-${i + 1}.${embeddedImageTypes.get(sourceIndex)}"/>`
         : "";
       entries.push(
-        [`ppt/slides/slide${i + 1}.xml`, content],
+        [`ppt/slides/slide${i + 1}.xml`, xml],
         [`ppt/slides/_rels/slide${i + 1}.xml.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide${i + 1}.xml"/>${imageRelation}</Relationships>`],
-        [`ppt/notesSlides/notesSlide${i + 1}.xml`, notesSlideXml(slides[i], i)],
+        [`ppt/notesSlides/notesSlide${i + 1}.xml`, notesSlideXml(slide, sourceIndex)],
         [`ppt/notesSlides/_rels/notesSlide${i + 1}.xml.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster" Target="../notesMasters/notesMaster1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="../slides/slide${i + 1}.xml"/></Relationships>`]
       );
-      if (embeddedImages.has(i)) entries.push([`ppt/media/slide-image-${i + 1}.${embeddedImageTypes.get(i)}`, embeddedImages.get(i)]);
+      if (embeddedImages.has(sourceIndex)) entries.push([`ppt/media/slide-image-${i + 1}.${embeddedImageTypes.get(sourceIndex)}`, embeddedImages.get(sourceIndex)]);
     });
     return zipBlob(entries, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
   }
@@ -2710,6 +2750,7 @@
       return (crc ^ 0xffffffff) >>> 0;
     };
     const header = (size) => new Uint8Array(size);
+    const dosDate = 0x0021;
     const put = (array, position, value, width = 2) => {
       for (let index = 0; index < width; index++) array[position + index] = value >>> (index * 8) & 0xff;
     };
@@ -2718,13 +2759,13 @@
       const bytes = content instanceof Uint8Array ? content : encoder.encode(content);
       const crc = crc32(bytes);
       const local = header(30 + name.length);
-      put(local, 0, 0x04034b50, 4); put(local, 4, 20); put(local, 14, crc, 4);
+      put(local, 0, 0x04034b50, 4); put(local, 4, 20); put(local, 12, dosDate); put(local, 14, crc, 4);
       put(local, 18, bytes.length, 4); put(local, 22, bytes.length, 4); put(local, 26, name.length);
       local.set(name, 30);
       files.push(local, bytes);
       const item = header(46 + name.length);
       put(item, 0, 0x02014b50, 4); put(item, 4, 20); put(item, 6, 20);
-      put(item, 16, crc, 4); put(item, 20, bytes.length, 4); put(item, 24, bytes.length, 4);
+      put(item, 14, dosDate); put(item, 16, crc, 4); put(item, 20, bytes.length, 4); put(item, 24, bytes.length, 4);
       put(item, 28, name.length); put(item, 42, offset, 4); item.set(name, 46);
       central.push(item);
       offset += local.length + bytes.length;

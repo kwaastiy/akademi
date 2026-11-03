@@ -36,7 +36,8 @@ $canManageRoles = in_array('superadmin', $adminUser['roles'], true);
       <div class="page-container admin-settings-container">
         <section class="auth-card settings-card users-management" id="users-management"
                  data-api-url="<?= e(app_url('api/admin/users')) ?>"
-                 data-can-manage-roles="<?= $canManageRoles ? '1' : '0' ?>">
+                 data-can-manage-roles="<?= $canManageRoles ? '1' : '0' ?>"
+                 data-current-user-id="<?= (int)$adminUser['id'] ?>">
           <span class="auth-kicker">PLATFORM ADMINISTRATION</span>
           <h1>User management</h1>
           <p class="auth-lead">Find accounts, review verification and manage access. Suspended users are signed out immediately.</p>
@@ -48,8 +49,8 @@ $canManageRoles = in_array('superadmin', $adminUser['roles'], true);
           </form>
           <p class="users-permissions-note">
             <?= $canManageRoles
-              ? 'Super Admins can grant or remove Administrator access. Super Admin accounts are protected.'
-              : 'Administrators can suspend or reactivate teacher accounts. Role changes and administrator accounts are restricted to a Super Admin.' ?>
+              ? 'Super Admins can grant or remove Administrator access. Admins can disable or enable accounts and delete accounts pending email verification. Super Admin accounts are protected.'
+              : 'Admins can disable or enable other accounts and delete accounts pending email verification. Role changes and Super Admin accounts are protected.' ?>
           </p>
           <div class="users-table-wrap">
             <table class="users-table">
@@ -67,7 +68,7 @@ $canManageRoles = in_array('superadmin', $adminUser['roles'], true);
   <script src="<?= e(app_url('assets/progress.js?v=5')) ?>" defer></script>
   <script src="<?= e(app_url('assets/auth.js?v=22')) ?>" defer></script>
   <script src="<?= e(app_url('assets/admin-shell.js?v=1')) ?>" defer></script>
-  <script src="<?= e(app_url('assets/admin-users.js?v=3')) ?>" defer></script>
+  <script src="<?= e(app_url('assets/admin-users.js?v=5')) ?>" defer></script>
   <script src="<?= e(app_url('assets/ai-assistant.js?v=2')) ?>" defer></script>
 </body>
 </html>
