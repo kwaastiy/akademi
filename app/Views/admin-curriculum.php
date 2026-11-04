@@ -47,10 +47,10 @@ declare(strict_types=1);
       <dialog id="curriculum-upload-dialog" class="resource-preview-dialog upload-resource-dialog" aria-labelledby="curriculum-upload-title">
       <div class="resource-preview-dialog-header">
         <div><span class="auth-kicker">PRIVATE RESOURCE UPLOAD</span><h2 id="curriculum-upload-title">Upload learning &amp; teaching resources</h2></div>
-        <button class="resource-preview-close" type="button" data-close-upload aria-label="Close upload form">&times;</button>
+        <button class="resource-preview-close" type="button" data-close-upload aria-label="Close dialog">&times;</button>
       </div>
       <form id="curriculum-upload-form" class="curriculum-upload-form">
-      <div class="upload-heading"><div><h2>Upload learning &amp; teaching resources</h2><p>Files are kept private until reviewed. To save a planning template, upload its DOCX, PDF, TXT or MD file, choose the matching lesson-plan or scheme-of-work template type, and verify it for AI format guidance.</p></div><svg class="icon" aria-hidden="true"><use href="<?= e(app_url('assets/icons.svg')) ?>#fa-upload"></use></svg></div>
+      <div class="upload-heading"><div><h2>Upload learning &amp; teaching resources</h2><p>Files are kept private until reviewed. To save a planning template, upload its DOCX, PDF, TXT or MD file, choose the matching lesson-plan or scheme-of-work template type, and verify it for AI format guidance.</p></div></div>
       <label class="auth-field"><span>Files (PDF, DOCX, TXT, MD or CSV; up to 10 files and 80 MB total)</span><input id="curriculum-upload-files" type="file" name="files[]" accept=".pdf,.docx,.txt,.md,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv" multiple required></label>
       <div id="upload-file-preview" class="upload-file-preview"></div>
       <div class="curriculum-upload-progress" id="curriculum-upload-progress" role="status" aria-live="polite" hidden><span id="curriculum-upload-progress-label">Preparing upload…</span><progress id="curriculum-upload-progress-bar" max="100" value="0"></progress></div>

@@ -98,6 +98,8 @@
     questionFormat: new Set(["mixed"]),
     duration: new Set(["60"])
   };
+  const assessmentTargetYearGroup = (yearGroups = Array.from(assessmentSelections.year)) =>
+    [...yearGroups].sort((left, right) => Number(left.slice(-1)) - Number(right.slice(-1))).at(-1) || "";
   const assessmentTopicCache = new Map();
   const selectedAssessmentTopicsByYear = new Map();
   let teacherAssessmentClasses = [];
@@ -476,7 +478,6 @@
   const lessonDialog = document.getElementById("lesson-wizard-dialog");
   const lessonYearSelect = lessonForm.elements.namedItem("year");
   const lessonSubjectSelect = lessonForm.elements.namedItem("subject");
-  const lessonSubjectOptions = document.getElementById("lesson-subject-options");
   const lessonClassOptions = document.getElementById("lesson-class-options");
   const lessonStepPages = Array.from(lessonForm.querySelectorAll("[data-lesson-step]"));
   const lessonWeekSelect = lessonForm.elements.namedItem("week");
@@ -627,6 +628,7 @@
   let currentAssessmentStep = 0;
   let activeAssessmentDraftId = null;
   let continueAssessmentDraft = null;
+  document.querySelector('#scheme-form [name="year"]').addEventListener("change", renderPlanningSubjectOptions);
 
   function showFormStep(kind, step) {
     const isAssessment = kind === "assessment";
@@ -1201,25 +1203,11 @@
   }
 
   lessonYearSelect.addEventListener("change", () => {
+    renderPlanningSubjectOptions();
     updateClassOptions();
     loadLessonCurriculum();
   });
-  lessonSubjectSelect.addEventListener("input", () => {
-    const query = lessonSubjectSelect.value.trim().toLocaleLowerCase();
-    const isKnownSubject = Array.from(lessonSubjectOptions.options)
-      .some((option) => option.value.toLocaleLowerCase() === query);
-    lessonSubjectSelect.setCustomValidity(query && !isKnownSubject ? "Choose a subject from the suggestions." : "");
-  });
   lessonSubjectSelect.addEventListener("change", () => {
-    const selected = Array.from(lessonSubjectOptions.options).find(
-      (option) => option.value.toLocaleLowerCase() === lessonSubjectSelect.value.trim().toLocaleLowerCase()
-    );
-    if (!selected) {
-      lessonSubjectSelect.setCustomValidity("Choose a subject from the suggestions.");
-      return;
-    }
-    lessonSubjectSelect.value = selected.value;
-    lessonSubjectSelect.setCustomValidity("");
     loadLessonCurriculum();
   });
   lessonWeekSelect.addEventListener("change", () => {
@@ -1249,12 +1237,12 @@
     updateLessonStandardPreview();
   });
   document.getElementById("lesson-new-button").addEventListener("click", () => {
-    if (!lessonSubjectOptions.options.length) {
-      showToast("The Ghana SHS subject list is still loading. Please try again shortly.", "error");
+    if (!curriculumSubjectReviewStatusLoaded || !curriculumSubjects.length) {
+      showToast("Curriculum subject availability is still loading or unavailable. Please try again shortly.", "error");
       return;
     }
     lessonForm.reset();
-    lessonSubjectSelect.setCustomValidity("");
+    renderPlanningSubjectOptions();
     renderLessonChoiceBadges("resources");
     lessonWeeklyLessons = [];
     const lessonWeekSelect = lessonForm.elements.namedItem("week");
@@ -1266,7 +1254,7 @@
     renderedLessonClassYear = "";
     lessonForm.elements.namedItem("duration").value = "60";
     lessonForm.elements.namedItem("school").value = profile.school || "";
-    if (profile.primary_subject && Array.from(lessonSubjectOptions.options).some((option) => option.value === profile.primary_subject)) {
+    if (profile.primary_subject && Array.from(lessonSubjectSelect.options).some((option) => option.value === profile.primary_subject && !option.disabled)) {
       lessonSubjectSelect.value = profile.primary_subject;
     }
     updateClassOptions();
@@ -1935,8 +1923,16 @@
       input.duration_minutes = Number(Array.from(assessmentSelections.duration)[0] || 60);
       const selectedWeeklySections = Array.from(document.querySelectorAll('#assessment-week-list input[name="selectedAssessmentWeek"]:checked'))
         .map((checkbox) => JSON.parse(checkbox.dataset.weekSection || "{}"));
+      const selectedTopicYearGroups = new Set(Array.from(
+        document.querySelectorAll('#assessment-topics-list input[name="selectedTopic"]:checked'),
+        (checkbox) => checkbox.dataset.yearGroup
+      ));
       const selectedYears = Array.from(assessmentSelections.year);
+      const targetYear = assessmentTargetYearGroup(selectedYears);
       const selectedClasses = teacherAssessmentClasses.filter((item) => selectedAssessmentClassIds.has(Number(item.id)));
+      const yearsWithoutSelectedCurriculum = selectedYears.filter((year) =>
+        !selectedTopicYearGroups.has(year) && !selectedWeeklySections.some((week) => week.year_group === year)
+      );
       input.curriculum_fallback = true;
       const choices = [
         Array.from(assessmentSelections.assessmentType),
@@ -1950,7 +1946,7 @@
         [[]]
       ).map(([assessmentType, questionFormat, duration], index) => ({
         ...input,
-        year_group: selectedYears[0],
+        year_group: assessmentTargetYearGroup(selectedYears),
         year_groups: selectedYears,
         class_name: selectedClasses.map((item) => item.name).join(", "),
         class_ids: selectedClasses.map((item) => Number(item.id)),
@@ -1968,7 +1964,8 @@
         teacher_instructions: [
           values.questions && `Teacher prompt: ${values.questions}`,
           values.marking && `Teacher marking notes: ${values.marking}`,
-          selectedYears.length && `Use verified curriculum resources from these selected SHS years: ${selectedYears.join(", ")}.`,
+          `The assessment is for SHS Year ${targetYear.slice(-1)}. Use only verified curriculum topics and weekly sections selected from these years: ${selectedYears.join(", ")}. Do not generate separate assessments for the source years.`,
+          yearsWithoutSelectedCurriculum.length && `No verified curriculum scope was selected for ${yearsWithoutSelectedCurriculum.map((year) => year.replace("SHS", "SHS Year ")).join(", ")}. Skip those years; do not invent their curriculum.`,
           selectedWeeklySections.length && `Use only these selected weekly sections as the assessment scope: ${selectedWeeklySections.map((week) => `${week.year_group}, Term ${week.term || "unspecified"}, Week ${week.week}: ${week.topic || week.learning_focus || "teacher-selected weekly scope"}`).join("; ")}`
         ].filter(Boolean).join("\n"),
         combination_index: index,
@@ -4003,7 +4000,7 @@
     data.combinations = Array.from(assessmentSelections.assessmentType).flatMap((assessment_type) =>
       Array.from(assessmentSelections.questionFormat).flatMap((question_format) =>
         Array.from(assessmentSelections.duration).map((duration_minutes) => ({
-          year_group: selectedYears[0],
+          year_group: assessmentTargetYearGroup(selectedYears),
           year_groups: selectedYears,
           class_name: selectedClasses.map((item) => item.name).join(", "),
           class_ids: selectedClasses.map((item) => Number(item.id)),
@@ -6123,6 +6120,273 @@
   let slidesWeeklyLessons = [];
   let slidesGeneratedFields = { outcomes: [], indicators: [], points: [] };
   let slidesLoadVersion = 0;
+  let curriculumSubjects = [];
+  let verifiedCurriculumSubjects = [];
+  let curriculumSubjectsInReview = [];
+  let curriculumSubjectReviewStatusLoaded = false;
+  let curriculumSubjectStatusPromise = null;
+  const searchableSubjectSelects = new Map();
+
+  function normalizeCurriculumSubject(value) {
+    const normalized = String(value || "").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+    return ["maths", "mathematics"].includes(normalized) ? "mathematics"
+      : ["additional maths", "additional mathematics"].includes(normalized) ? "additional mathematics"
+        : normalized;
+  }
+
+  function subjectMatchesReviewName(reviewName, subject) {
+    const normalizedReviewName = ` ${normalizeCurriculumSubject(reviewName)} `;
+    const normalizedSubject = normalizeCurriculumSubject(subject);
+    const variants = normalizedSubject === "mathematics"
+      ? ["mathematics", "maths"]
+      : normalizedSubject === "additional mathematics"
+        ? ["additional mathematics", "additional maths"]
+        : [normalizedSubject];
+    return variants.some((variant) => normalizedReviewName.includes(` ${variant} `));
+  }
+
+  function subjectIsUnderReview(subject, yearGroup = null) {
+    return curriculumSubjectsInReview.some((item) =>
+      (!yearGroup || item.year_group === yearGroup) && subjectMatchesReviewName(item.subject, subject)
+    );
+  }
+
+  function availableCurriculumSubjects(yearGroups = []) {
+    const requestedYears = [...new Set(yearGroups)];
+    const subjectsByKey = new Map();
+    verifiedCurriculumSubjects.forEach((item) => {
+      if ((requestedYears.length && !requestedYears.includes(item.year_group))
+        || subjectIsUnderReview(item.subject, item.year_group)) return;
+      const key = normalizeCurriculumSubject(item.subject);
+      if (!key) return;
+      const entry = subjectsByKey.get(key) || { subject: item.subject, years: new Set() };
+      entry.years.add(item.year_group);
+      subjectsByKey.set(key, entry);
+    });
+    return [...subjectsByKey.values()]
+      .map((entry) => entry.subject)
+      .sort((left, right) => left.localeCompare(right));
+  }
+
+  function selectedYearGroup(select) {
+    const yearSelect = select === lessonSubjectSelect
+      ? lessonYearSelect
+      : select === schemeSubjectSelect
+        ? document.querySelector('#scheme-form [name="year"]')
+        : select === slidesForm.elements.namedItem("subject")
+          ? slidesForm.elements.namedItem("year")
+          : null;
+    const yearValue = yearSelect?.value || "";
+    const match = yearValue.match(/([123])$/);
+    return match ? [`SHS${match[1]}`] : [];
+  }
+
+  async function loadCurriculumSubjectStatus() {
+    if (!curriculumSubjectStatusPromise) {
+      curriculumSubjectStatusPromise = workspaceRequest("/api/curriculum/subject-review-status")
+        .then((result) => {
+          if (!Array.isArray(result.verified_subjects)
+            || result.verified_subjects.some((item) =>
+              typeof item?.subject !== "string" || !["SHS1", "SHS2", "SHS3"].includes(item.year_group))
+            || !Array.isArray(result.subjects_in_review)
+            || result.subjects_in_review.some((item) =>
+              typeof item?.subject !== "string" || !["SHS1", "SHS2", "SHS3"].includes(item.year_group))) {
+            throw new Error("The subject availability response is invalid.");
+          }
+          verifiedCurriculumSubjects = result.verified_subjects;
+          curriculumSubjectsInReview = result.subjects_in_review;
+          curriculumSubjects = availableCurriculumSubjects();
+          curriculumSubjectReviewStatusLoaded = true;
+          return result;
+        })
+        .catch((error) => {
+          curriculumSubjectStatusPromise = null;
+          throw error;
+        });
+    }
+    return curriculumSubjectStatusPromise;
+  }
+
+  function renderPlanningSubjectOptions() {
+    const controls = [
+      lessonSubjectSelect,
+      schemeSubjectSelect,
+      slidesForm.elements.namedItem("subject"),
+      assessmentForm.elements.namedItem("subject")
+    ];
+    controls.forEach((select) => {
+      const previousValue = select.value;
+      let selectionInvalidated = false;
+      select.replaceChildren(new Option("", ""));
+      if (curriculumSubjectReviewStatusLoaded) {
+        const years = select === assessmentForm.elements.namedItem("subject")
+          ? [...assessmentSelections.year]
+          : selectedYearGroup(select);
+        const subjects = availableCurriculumSubjects(years);
+        subjects.forEach((subject) => select.add(new Option(subject, subject)));
+        select.options[0].textContent = subjects.length ? "Choose a subject" : "No verified subjects for this year";
+      } else {
+        select.options[0].textContent = "Loading verified subjects…";
+      }
+      if (previousValue && Array.from(select.options).some((option) => option.value === previousValue && !option.disabled)) {
+        select.value = previousValue;
+      } else {
+        select.value = "";
+        selectionInvalidated = Boolean(previousValue);
+      }
+      if (selectionInvalidated) select.dispatchEvent(new Event("change", { bubbles: true }));
+      searchableSubjectSelects.get(select)?.refresh();
+    });
+  }
+
+  function makeSubjectSelectSearchable(select, label) {
+    if (searchableSubjectSelects.has(select)) return searchableSubjectSelects.get(select).refresh;
+    const wrapper = document.createElement("div");
+    wrapper.className = "subject-combobox";
+    const input = document.createElement("input");
+    input.type = "search";
+    input.className = "subject-combobox-input";
+    input.autocomplete = "off";
+    input.placeholder = `Search ${label.toLocaleLowerCase()}…`;
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-haspopup", "listbox");
+    input.setAttribute("aria-expanded", "false");
+    const status = document.createElement("small");
+    status.className = "subject-combobox-status";
+    status.setAttribute("aria-live", "polite");
+    const listbox = document.createElement("div");
+    listbox.className = "subject-combobox-options";
+    listbox.id = `subject-combobox-${searchableSubjectSelects.size + 1}-options`;
+    listbox.setAttribute("role", "listbox");
+    listbox.setAttribute("aria-label", label);
+    listbox.hidden = true;
+    input.setAttribute("aria-controls", listbox.id);
+    wrapper.append(input, listbox, status);
+    select.parentElement.insertBefore(wrapper, select);
+    select.classList.add("subject-combobox-native");
+    select.tabIndex = -1;
+    select.setAttribute("aria-hidden", "true");
+    select.required = false;
+    input.required = true;
+    select.dataset.searchableSubject = "true";
+    let options = Array.from(select.options, (option) => option.cloneNode(true));
+    let activeIndex = -1;
+    let isOpen = false;
+    let searchQuery = "";
+    const close = (restoreSelection = false) => {
+      isOpen = false;
+      listbox.hidden = true;
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+      activeIndex = -1;
+      if (restoreSelection) {
+        searchQuery = "";
+        input.value = options.find((option) => option.value === select.value)?.textContent || "";
+      }
+    };
+    const filteredOptions = () => {
+      return options.filter((option) => option.value && !option.disabled
+        && (!searchQuery || option.textContent.toLocaleLowerCase().includes(searchQuery)));
+    };
+    const choose = (option) => {
+      select.value = option.value;
+      input.value = option.textContent;
+      searchQuery = "";
+      input.setCustomValidity("");
+      close();
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    const renderOptions = () => {
+      const matches = filteredOptions();
+      listbox.replaceChildren(...matches.map((option, index) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.id = `${listbox.id}-${index}`;
+        item.className = "subject-combobox-option";
+        item.setAttribute("role", "option");
+        item.setAttribute("aria-selected", String(option.value === select.value));
+        item.classList.toggle("is-active", index === activeIndex);
+        item.tabIndex = -1;
+        item.textContent = option.textContent;
+        item.addEventListener("mousedown", (event) => event.preventDefault());
+        item.addEventListener("click", () => choose(option));
+        return item;
+      }));
+      status.textContent = searchQuery && !matches.length ? "No matching verified subjects." : "";
+      listbox.hidden = !isOpen || !matches.length;
+      input.setAttribute("aria-expanded", String(!listbox.hidden));
+      if (activeIndex >= matches.length) activeIndex = matches.length - 1;
+      return matches;
+    };
+    const refresh = () => {
+      options = Array.from(select.options, (option) => option.cloneNode(true));
+      const selected = options.find((option) => option.value === select.value);
+      input.value = selected?.textContent || "";
+      searchQuery = "";
+      input.setCustomValidity(selected ? "" : "Choose a verified subject from the list.");
+      activeIndex = -1;
+      renderOptions();
+    };
+    input.addEventListener("focus", () => {
+      searchQuery = "";
+      if (select.value) input.select();
+      isOpen = true;
+      renderOptions();
+    });
+    input.addEventListener("input", () => {
+      searchQuery = input.value.trim().toLocaleLowerCase();
+      if (select.value) {
+        select.value = "";
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      input.setCustomValidity("Choose a verified subject from the list.");
+      activeIndex = -1;
+      isOpen = true;
+      renderOptions();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        close(true);
+        return;
+      }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Enter") return;
+      const matches = filteredOptions();
+      if (!matches.length) return;
+      event.preventDefault();
+      if (event.key === "Enter") {
+        if (activeIndex >= 0) choose(matches[activeIndex]);
+        else if (matches.length === 1) choose(matches[0]);
+        return;
+      }
+      activeIndex = event.key === "ArrowDown"
+        ? Math.min(activeIndex + 1, matches.length - 1)
+        : Math.max(activeIndex - 1, 0);
+      renderOptions();
+      const activeOption = document.getElementById(`${listbox.id}-${activeIndex}`);
+      if (activeOption) {
+        input.setAttribute("aria-activedescendant", activeOption.id);
+        activeOption.scrollIntoView({ block: "nearest" });
+      }
+    });
+    input.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (wrapper.contains(document.activeElement)) return;
+        close(true);
+      }, 120);
+    });
+    const state = { input, listbox, refresh };
+    searchableSubjectSelects.set(select, state);
+    refresh();
+    return refresh;
+  }
+
+  [
+    [lessonSubjectSelect, "subjects"],
+    [schemeSubjectSelect, "subjects"],
+    [slidesForm.elements.namedItem("subject"), "subjects"],
+    [assessmentForm.elements.namedItem("subject"), "subjects"]
+  ].forEach(([select, label]) => makeSubjectSelectSearchable(select, label));
 
   function selectedSlideWeeks() {
     return Array.from(slidesWeekList.querySelectorAll('input[name="slidesWeek"]:checked'))
@@ -6699,14 +6963,19 @@
   function presentationSlideMarkup(slide, index, data, loadImageImmediately = false) {
     const imageMarkup = presentationImageMarkup(slide.image, loadImageImmediately);
     const visualMarkup = presentationVisualMarkup(slide.visual);
-    const mediaMarkup = imageMarkup
-      ? `<div class="presentation-media-column">${imageMarkup}${visualMarkup}</div>`
-      : visualMarkup;
+    const suggestionMarkup = slide.visual_suggestion
+      ? `<p class="presentation-slide-visual-suggestion"><b>Visual:</b> ${escapeHtml(slide.visual_suggestion)}</p>`
+      : "";
+    const visualPanel = visualMarkup || suggestionMarkup
+      ? `<div class="presentation-slide-visual-panel">${visualMarkup}${suggestionMarkup}</div>`
+      : "";
+    const mediaMarkup = imageMarkup || visualPanel
+      ? `<div class="presentation-media-column">${imageMarkup}${visualPanel}</div>`
+      : "";
     const activityMarkup = slide.activity
       ? `<section class="presentation-slide-activity"><strong><i class="fa-solid fa-people-group" aria-hidden="true"></i> Classroom activity</strong><p>${escapeHtml(slide.activity)}</p></section>`
       : "";
-    const suggestionMarkup = slide.visual_suggestion ? `<p class="presentation-slide-visual-suggestion"><b>Visual:</b> ${escapeHtml(slide.visual_suggestion)}</p>` : "";
-    return `<article class="presentation-slide-preview presentation-theme-${escapeHtml(data.visual_theme)} presentation-template-${escapeHtml(data.template)}"><header><span>SLIDE ${String(index + 1).padStart(2, "0")}</span><small>${escapeHtml(data.subject || "")} · ${escapeHtml(data.year || data.year_group || "")}</small></header><h4>${escapeHtml(slide.title)}</h4><ul>${(slide.key_points || []).map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>${mediaMarkup}${activityMarkup}${suggestionMarkup}</article>`;
+    return `<article class="presentation-slide-preview presentation-theme-${escapeHtml(data.visual_theme)} presentation-template-${escapeHtml(data.template)}"><header><span>SLIDE ${String(index + 1).padStart(2, "0")}</span><small>${escapeHtml(data.subject || "")} · ${escapeHtml(data.year || data.year_group || "")}</small></header><h4>${escapeHtml(slide.title)}</h4><ul>${(slide.key_points || []).map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>${mediaMarkup}${activityMarkup}</article>`;
   }
 
   function presentationImageMarkup(image, loadImmediately = false) {
@@ -8956,7 +9225,10 @@
   });
   slidesHistoryDialog.querySelector("[data-close-slides-history]").addEventListener("click", () => slidesHistoryDialog.close());
 
-  slidesForm.elements.namedItem("year").addEventListener("change", loadSlideWeeks);
+  slidesForm.elements.namedItem("year").addEventListener("change", () => {
+    renderPlanningSubjectOptions();
+    loadSlideWeeks();
+  });
   slidesForm.elements.namedItem("subject").addEventListener("change", loadSlideWeeks);
   document.getElementById("slides-reload-weeks").addEventListener("click", loadSlideWeeks);
   slidesEditEditor.addEventListener("input", refreshSlideEditPreview);
@@ -9227,13 +9499,15 @@
     document.querySelector("#slides-dialog .lesson-wizard-header p").textContent =
       "Start with a year and subject. Select one or more curriculum weeks to draft outcomes, indicators and teaching points.";
     slidesForm.reset();
+    renderPlanningSubjectOptions();
     slidesForm.dataset.editingId = "";
     slidesForm.querySelector('[type="submit"]').textContent = "Build slide outline";
     slidesGeneratedFields = { outcomes: [], indicators: [], points: [] };
     slidesWeekList.replaceChildren();
     slidesWeeklyLessons = [];
     slidesCurriculumStatus.textContent = "Choose the SHS year and subject to find curriculum weeks.";
-    if (profile.primary_subject) {
+    if (profile.primary_subject && Array.from(slidesForm.elements.namedItem("subject").options)
+      .some((option) => option.value === profile.primary_subject && !option.disabled)) {
       slidesForm.elements.namedItem("subject").value = profile.primary_subject;
     }
     if (slidesForm.elements.namedItem("subject").value && slidesForm.elements.namedItem("year").value) loadSlideWeeks();
@@ -10010,27 +10284,33 @@
     const subjectList = document.getElementById("ghana-subject-options");
     const departmentList = document.getElementById("ghana-department-options");
     try {
-      const [areasResponse, subjectsResponse] = await Promise.all([
-        fetch(`${appBase}/assets/data/ghana-admin-areas.json`, { credentials: "same-origin" }),
-        fetch(`${appBase}/assets/data/ghana-shs-subjects.json`, { credentials: "same-origin" })
-      ]);
-      if (!areasResponse.ok || !subjectsResponse.ok) {
-        throw new Error("The searchable Ghana profile lists could not be loaded.");
+      const areasResponse = await fetch(`${appBase}/assets/data/ghana-admin-areas.json`, { credentials: "same-origin" });
+      if (!areasResponse.ok) {
+        throw new Error("The searchable Ghana region and district lists could not be loaded.");
       }
-      const [areas, subjectGroups] = await Promise.all([areasResponse.json(), subjectsResponse.json()]);
-      const lessonSubjects = [...new Set(Object.values(subjectGroups).flat())].sort((left, right) => left.localeCompare(right));
-      subjectList.replaceChildren(...lessonSubjects.map((subject) => new Option(subject, subject)));
-      lessonSubjectOptions.replaceChildren(...lessonSubjects.map((subject) => new Option(subject, subject)));
-      if (profile.primary_subject && lessonSubjects.includes(profile.primary_subject)) {
-        lessonSubjectSelect.value = profile.primary_subject;
+      const areas = await areasResponse.json();
+      subjectList.replaceChildren();
+      try {
+        await loadCurriculumSubjectStatus();
+      } catch (error) {
+        showToast(error instanceof Error
+          ? `Subject availability could not be checked: ${error.message}`
+          : "Subject availability could not be checked. Refresh and try again.", "error");
       }
-      schemeSubjectSelect.replaceChildren(new Option("Choose a subject", ""));
-      lessonSubjects.forEach((subject) => schemeSubjectSelect.add(new Option(subject, subject)));
-      if (profile.primary_subject && lessonSubjects.includes(profile.primary_subject)) {
-        schemeSubjectSelect.value = profile.primary_subject;
-      }
-      if (profile.primary_subject && lessonSubjects.includes(profile.primary_subject)) {
-        slidesForm.elements.namedItem("subject").value = profile.primary_subject;
+      renderPlanningSubjectOptions();
+      curriculumSubjects = curriculumSubjectReviewStatusLoaded ? availableCurriculumSubjects() : [];
+      subjectList.replaceChildren(...curriculumSubjects.map((subject) => {
+        const option = document.createElement("option");
+        option.value = subject;
+        return option;
+      }));
+      if (profile.primary_subject && curriculumSubjects.includes(profile.primary_subject)) {
+        [lessonSubjectSelect, schemeSubjectSelect, slidesForm.elements.namedItem("subject")].forEach((select) => {
+          if (Array.from(select.options).some((option) => option.value === profile.primary_subject && !option.disabled)) {
+            select.value = profile.primary_subject;
+            searchableSubjectSelects.get(select)?.refresh();
+          }
+        });
       }
       const academicYearSelect = lessonForm.elements.namedItem("academicYear");
       const currentAcademicYear = new Date().getFullYear();
@@ -10123,12 +10403,6 @@
       };
       regionField.addEventListener("input", updateDistricts);
       updateDistricts();
-      const subjects = [...new Set(Object.values(subjectGroups).flat())].sort((left, right) => left.localeCompare(right));
-      subjectList.replaceChildren(...subjects.map((subject) => {
-        const option = document.createElement("option");
-        option.value = subject;
-        return option;
-      }));
       const departments = [
         "General Arts", "General Science", "Business", "Agriculture", "Home Economics",
         "Visual Arts", "Technical", "Vocational", "Languages", "Physical Education", "ICT"
@@ -10138,11 +10412,6 @@
         option.value = department;
         return option;
       }));
-      if (!subjects.includes(subjectField.value) && subjectField.value) {
-        const option = document.createElement("option");
-        option.value = subjectField.value;
-        subjectList.append(option);
-      }
     } catch (error) {
       showToast(error instanceof Error ? error.message : "The Ghana profile lists could not be loaded.", "error");
     }
@@ -10187,7 +10456,6 @@
     };
     let curriculumCatalogPromise = null;
     const normalizeCatalogSubject = (value) => String(value || "").toLocaleLowerCase().replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
-    const normalizeYearGroup = (value) => String(value || "").toUpperCase().replace(/SHS\s*YEAR\s*/g, "SHS").replace(/SHS\s+/g, "SHS").replace(/[^A-Z0-9]/g, "");
     let weeklySectionsRequest = 0;
     let weeklySectionsController = null;
     const renderWeeklySections = async () => {
@@ -10217,15 +10485,9 @@
         weeklyStatus.textContent = "Enter at least two characters of the subject name to load weekly sections.";
         return;
       }
-      const matchingSchemes = activeDocuments().filter((doc) => doc.type === "scheme"
-        && normalizeCatalogSubject(doc.subject || doc.data?.subject) === normalizeCatalogSubject(subject)
-        && Array.isArray(doc.data?.weeks));
-      const schemeForYear = (year) => matchingSchemes
-        .filter((doc) => normalizeYearGroup(doc.data?.year_group || doc.year_group || doc.data?.year || doc.year) === normalizeYearGroup(year))
-        .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))[0];
       const controller = new AbortController();
       weeklySectionsController = controller;
-      weeklyStatus.textContent = `Loading verified weekly curriculum for ${subject}…`;
+      weeklyStatus.textContent = `Loading verified weekly curriculum for ${subject} across the selected years…`;
       weeklyStatus.setAttribute("aria-busy", "true");
       let curriculumLessonsByYear;
       try {
@@ -10257,10 +10519,8 @@
       weeklyStatus.removeAttribute("aria-busy");
       const curriculumLessons = new Map(curriculumLessonsByYear);
       let total = 0;
-      const availableSources = new Set();
+      const yearsWithoutVerifiedWeeks = [];
       years.forEach((year) => {
-        const scheme = schemeForYear(year);
-        const suppliedWeeks = scheme?.data?.weeks || [];
         const sourceLessons = curriculumLessons.get(year) || [];
         const resourceWeeks = sourceLessons.slice(0, 39).map((lesson) => {
           const entries = Array.isArray(lesson.curriculum_entries) ? lesson.curriculum_entries : [];
@@ -10288,35 +10548,33 @@
             year_group: year
           };
         });
-        const weeks = resourceWeeks.length ? resourceWeeks : suppliedWeeks.length ? suppliedWeeks.slice(0, 39).map((week) => ({
-          term: String(week.term || ""), week: Number(week.week) || 0,
-          strand: String(week.strand || ""), sub_strand: String(week.sub_strand || ""),
-          focal_area: String(week.focal_area || ""), topic: String(week.topic || ""),
-          learning_focus: String(week.learning_focus || ""),
-          content_standard: String(week.content_standard || ""),
-          learning_indicators: Array.isArray(week.learning_indicators) ? week.learning_indicators.map(String) : [],
-          activities: String(week.activities || ""), year_group: year
-        })) : Array.from({ length: 13 }, (_, index) => ({ term: "", week: index + 1, topic: "", learning_focus: "", year_group: year }));
-        availableSources.add(resourceWeeks.length ? "verified curriculum resources"
-          : suppliedWeeks.length ? "saved schemes" : "editable weeks");
         const group = document.createElement("details");
         group.className = "assessment-week-year";
         group.open = true;
         const summary = document.createElement("summary");
-        summary.textContent = `${year.replace("SHS", "SHS Year ")} · ${weeks.length} weeks`;
+        if (!resourceWeeks.length) {
+          yearsWithoutVerifiedWeeks.push(year);
+          summary.textContent = `${year.replace("SHS", "SHS Year ")} · no verified weekly curriculum`;
+          const message = document.createElement("p");
+          message.className = "field-help assessment-week-unavailable";
+          message.textContent = `No verified weekly topics are available for ${year.replace("SHS", "SHS Year ")} ${subject}. Verified topics from other selected years remain available.`;
+          group.append(summary, message);
+          weeklySections.append(group);
+          return;
+        }
+        const weeks = resourceWeeks;
+        summary.textContent = `${year.replace("SHS", "SHS Year ")} · ${weeks.length} verified teaching weeks`;
         const list = document.createElement("div");
         list.className = "assessment-week-year-list";
         weeks.forEach((week, index) => {
-          const key = week.weekly_lesson_id
-            ? `${normalizeCatalogSubject(subject)}:lesson:${week.weekly_lesson_id}`
-            : `${normalizeCatalogSubject(subject)}:${scheme?.id || "manual"}:${week.term}:${week.week}:${index}`;
+          const key = `${normalizeCatalogSubject(subject)}:lesson:${week.weekly_lesson_id}`;
           const selected = selectedWeeksByYear.get(year)?.get(key) || week;
           const label = document.createElement("div");
           label.className = "assessment-week-option";
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.name = "selectedAssessmentWeek";
-          checkbox.id = `assessment-week-${year}-${scheme?.id || "manual"}-${index}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+          checkbox.id = `assessment-week-${year}-${week.weekly_lesson_id}`.replace(/[^a-zA-Z0-9_-]/g, "-");
           checkbox.dataset.weekKey = key;
           checkbox.checked = selectedWeeksByYear.get(year)?.has(key) || false;
           const serialized = { ...selected, year_group: year };
@@ -10352,8 +10610,11 @@
             if (checkbox.checked) selectedWeeks.set(key, JSON.parse(checkbox.dataset.weekSection));
             else selectedWeeks.delete(key);
             selectedWeeksByYear.set(year, selectedWeeks);
-            const count = Array.from(weeklySections.querySelectorAll('input[name="selectedAssessmentWeek"]:checked')).length;
-            weeklyStatus.textContent = count ? `${count} weekly section${count === 1 ? "" : "s"} selected.` : "No weekly sections selected. Select taught weeks to guide the assessment.";
+            const count = weeklySections.querySelectorAll('input[name="selectedAssessmentWeek"]:checked').length;
+            const unavailableYears = yearsWithoutVerifiedWeeks.length
+              ? ` No verified weekly curriculum for ${yearsWithoutVerifiedWeeks.map((selectedYear) => selectedYear.replace("SHS", "SHS Year ")).join(", ")}; those years are skipped.`
+              : "";
+            weeklyStatus.textContent = `${count ? `${count} verified weekly section${count === 1 ? "" : "s"} selected.` : "No weekly sections selected."}${unavailableYears}`;
           });
           focus.addEventListener("input", () => {
             const section = JSON.parse(checkbox.dataset.weekSection || "{}");
@@ -10369,7 +10630,12 @@
         weeklySections.append(group);
       });
       const selectedCount = weeklySections.querySelectorAll('input[name="selectedAssessmentWeek"]:checked').length;
-      weeklyStatus.textContent = `${selectedCount ? `${selectedCount} selected. ` : ""}${total} weekly sections available from ${Array.from(availableSources).join(", ")}.`;
+      const unavailableYears = yearsWithoutVerifiedWeeks.length
+        ? ` No verified weekly curriculum for ${yearsWithoutVerifiedWeeks.map((year) => year.replace("SHS", "SHS Year ")).join(", ")}; those years are skipped.`
+        : "";
+      weeklyStatus.textContent = total
+        ? `${selectedCount ? `${selectedCount} selected. ` : ""}${total} verified weekly sections available across the selected years.${unavailableYears}`
+        : `No verified weekly topics are available for ${subject} in the selected years.${unavailableYears}`;
     };
     const catalogOutlineRows = (yearEntries) => {
       const rows = [];
@@ -10437,6 +10703,7 @@
     const subjectSummary = document.getElementById("assessment-class-subject-summary");
     const classSearch = document.getElementById("assessment-class-search");
     const classSubjectFilter = document.getElementById("assessment-class-filter-subject");
+    makeSubjectSelectSearchable(classSubjectFilter, "subjects");
     const classYearFilter = document.getElementById("assessment-class-filter-year");
     const classStatusFilter = document.getElementById("assessment-class-filter-status");
     const classSelectionSearch = document.getElementById("assessment-class-selection-search");
@@ -10472,8 +10739,10 @@
         ghanaian_languages: "Ghanaian languages"
       };
       let renderedSubjects = 0;
+      const availableKeys = new Set(assessmentSubjectOptions.map(normalizeCurriculumSubject));
       Object.entries(assessmentSubjectGroups).forEach(([category, subjects]) => {
-        const matches = subjects.filter((subject) => !query || subject.toLocaleLowerCase().includes(query));
+        const matches = subjects.filter((subject) => availableKeys.has(normalizeCurriculumSubject(subject))
+          && (!query || subject.toLocaleLowerCase().includes(query)));
         if (!matches.length) return;
         const group = document.createElement("section");
         group.className = "assessment-subject-group";
@@ -10488,7 +10757,8 @@
         group.append(heading, options);
         subjectPicker.append(group);
       });
-      const extraSubjects = [...selectedClassSubjects].filter((subject) => !assessmentSubjectOptions.includes(subject));
+      const catalogKeys = new Set(Object.values(assessmentSubjectGroups).flat().map(normalizeCurriculumSubject));
+      const extraSubjects = assessmentSubjectOptions.filter((subject) => !catalogKeys.has(normalizeCurriculumSubject(subject)));
       const extraMatches = extraSubjects.filter((subject) => !query || subject.toLocaleLowerCase().includes(query));
       if (extraMatches.length) {
         const group = document.createElement("section");
@@ -10526,6 +10796,7 @@
       return label;
     };
     const loadAssessmentSubjectOptions = async () => {
+      await loadCurriculumSubjectStatus();
       const response = await fetch(`${appBase}/assets/data/ghana-shs-subjects.json`, { credentials: "same-origin" });
       if (!response.ok) throw new Error("The subject catalog could not be loaded. Refresh and try again.");
       const groups = await response.json();
@@ -10538,7 +10809,7 @@
         }
         return [name, subjects];
       }));
-      assessmentSubjectOptions = [...new Set(Object.values(assessmentSubjectGroups).flat())].sort((a, b) => a.localeCompare(b));
+      assessmentSubjectOptions = availableCurriculumSubjects();
       updateClassSubjectFilters();
       renderClassSubjectOptions();
     };
@@ -10586,8 +10857,9 @@
     };
     const updateCombinationSummary = () => {
       const count = comboCount();
+      const targetYear = assessmentTargetYearGroup(selectedValues("year"));
       combinationSummary.textContent = count
-        ? `${count} assessment draft${count === 1 ? "" : "s"} will be generated for ${classRows().length} selected class${classRows().length === 1 ? "" : "es"}. Selected years and classes share each draft; one question format is used at a time.`
+        ? `${count} assessment draft${count === 1 ? "" : "s"} for SHS Year ${targetYear.slice(-1)} will use verified curriculum from the selected year${selectedValues("year").length === 1 ? "" : "s"}${classRows().length ? ` and ${classRows().length} selected class${classRows().length === 1 ? "" : "es"}` : ""}. Selecting multiple years does not create duplicate assessments.`
         : "Select at least one SHS year, assessment type, question format and duration.";
     };
     const renderClassSelections = () => {
@@ -10602,10 +10874,10 @@
       }
       const query = classSelectionSearch.value.trim().toLocaleLowerCase();
       const subject = document.querySelector('#assessment-form [name="subject"]').value.trim().toLocaleLowerCase();
-      const years = selectedValues("year");
+      const targetYear = assessmentTargetYearGroup(selectedValues("year"));
       const matchingClasses = teacherAssessmentClasses.filter((item) => !item.archived_at).filter((item) =>
         subject
-        && years.includes(item.year_group)
+        && item.year_group === targetYear
         && classSubjects(item).some((name) => name.trim().toLocaleLowerCase() === subject)
       );
       const matchingIds = new Set(matchingClasses.map((item) => Number(item.id)));
@@ -10621,11 +10893,11 @@
         empty.className = "field-help";
         empty.textContent = !subject
           ? "Choose an assessment subject to see classes that teach it."
-          : !years.length
+          : !targetYear
             ? "Select at least one SHS year to see matching classes."
             : matchingClasses.length
               ? "No matching classes contain that search. Try another search."
-              : `No active classes match ${subjectField.value.trim()} in ${years.map((year) => year.replace("SHS", "SHS Year ")).join(", ")}. Update a class subject/year or change the assessment selections.`;
+              : `No active classes match ${subjectField.value.trim()} in SHS Year ${targetYear.slice(-1)}. Update a class subject/year or change the assessment selections.`;
         classesContainer.append(empty);
       }
       visibleClasses.forEach((item) => {
@@ -10648,9 +10920,15 @@
     };
     const updateClassSubjectFilters = () => {
       const currentValue = classSubjectFilter.value;
-      const subjects = [...new Set([...assessmentSubjectOptions, ...teacherAssessmentClasses.flatMap(classSubjects)])].sort((a, b) => a.localeCompare(b));
-      classSubjectFilter.replaceChildren(new Option("All subjects", ""), ...subjects.map((value) => new Option(value, value)));
-      classSubjectFilter.value = subjects.includes(currentValue) ? currentValue : "";
+      const subjects = availableCurriculumSubjects();
+      classSubjectFilter.replaceChildren(
+        new Option("All subjects", ""),
+        ...subjects.map((value) => new Option(value, value))
+      );
+      classSubjectFilter.value = subjects.find((subject) =>
+        normalizeCurriculumSubject(subject) === normalizeCurriculumSubject(currentValue)
+      ) || "";
+      searchableSubjectSelects.get(classSubjectFilter)?.refresh();
     };
     const renderManagedClasses = () => {
       classLibrary.replaceChildren();
@@ -11426,6 +11704,10 @@
         showToast("Select at least one badge for SHS year, assessment type, question format and duration.", "error");
         return false;
       }
+      if (assessmentSelections.assessmentType.size !== 1) {
+        showToast("Select exactly one assessment type.", "error");
+        return false;
+      }
       if (assessmentSelections.questionFormat.size !== 1) {
         showToast("Select exactly one question format.", "error");
         return false;
@@ -11450,10 +11732,11 @@
           return false;
         }
         const selectedYears = selectedValues("year");
+        const targetYear = assessmentTargetYearGroup(selectedYears);
         const subject = subjectField.value.trim().toLocaleLowerCase();
         const incompatibleClass = selectedClasses.find((item) =>
           !(item.subjects || [item.subject_name]).some((name) => name.trim().toLocaleLowerCase() === subject)
-          || !selectedYears.includes(item.year_group)
+          || item.year_group !== targetYear
           || Number(item.learner_count) < 1
         );
         if (incompatibleClass) {
@@ -11461,8 +11744,8 @@
             .some((name) => name.trim().toLocaleLowerCase() === subject);
           if (!subjectMatches) {
             showToast(`${incompatibleClass.name} does not have ${subjectField.value.trim() || "the chosen subject"} assigned. Choose one of its subjects or update the class in Class management.`, "error");
-          } else if (!selectedYears.includes(incompatibleClass.year_group)) {
-            showToast(`Select SHS Year ${incompatibleClass.year_group.slice(-1)} for ${incompatibleClass.name}, or remove that class from this assessment.`, "error");
+          } else if (incompatibleClass.year_group !== targetYear) {
+            showToast(`This assessment is for SHS Year ${targetYear.slice(-1)}. Select a matching class or remove ${incompatibleClass.name}.`, "error");
           } else {
             showToast(`Add at least one student to ${incompatibleClass.name} in Class management before generating its online assessment.`, "error");
           }
@@ -11476,20 +11759,17 @@
       const selectedWeeks = Array.from(weeklySections.querySelectorAll('input[name="selectedAssessmentWeek"]:checked'), (checkbox) =>
         JSON.parse(checkbox.dataset.weekSection || "{}")
       );
+      if (selectedWeeks.length > 39) {
+        showToast("Select no more than 39 verified weekly sections total across the selected SHS years.", "error");
+        return false;
+      }
       const selectedTopics = topicList?.querySelectorAll('input[name="selectedTopic"]:checked').length ?? 0;
       if (selectedTopics > 30) {
         showToast("Select no more than 30 curriculum topics across the chosen SHS years.", "error");
         return false;
       }
-      if (!selectedWeeks.length) {
-        showToast("Select at least one teaching week to set the assessment scope.", "error");
-        return false;
-      }
-      const yearsWithoutWeeks = selectedValues("year").filter((year) =>
-        !selectedWeeks.some((week) => week.year_group === year)
-      );
-      if (yearsWithoutWeeks.length) {
-        showToast(`Select at least one teaching week for each selected year: ${yearsWithoutWeeks.join(", ")}.`, "error");
+      if (!selectedWeeks.length && !selectedTopics) {
+        showToast("Select at least one verified teaching week or curriculum topic to set the assessment scope.", "error");
         return false;
       }
       if (comboCount() > 30) {
@@ -11519,6 +11799,9 @@
       if (groupName === "duration") {
         selected.clear();
         selected.add(badge.dataset.assessmentValue);
+      } else if (groupName === "assessmentType") {
+        selected.clear();
+        selected.add(badge.dataset.assessmentValue);
       } else if (groupName === "questionFormat") {
         selected.clear();
         selected.add(badge.dataset.assessmentValue);
@@ -11527,6 +11810,7 @@
       syncBadgeButtons(groupName);
       if (groupName === "duration") updateTimeShare();
       if (groupName === "year") {
+        renderPlanningSubjectOptions();
         updateClassSuggestions();
         renderWeeklySections();
         renderClassSelections();
@@ -11793,10 +12077,10 @@
       if (event.target.closest("[data-close-learner-dialog]")) learnerDialog.close();
     });
     const updateClassSuggestions = () => {
-      const years = selectedValues("year").map((year) => year.replace("SHS", ""));
-      classSuggestions.replaceChildren(...years.flatMap((year) =>
-        Array.from("ABCDEFG", (letter) => new Option(`${year}${letter}`, `${year}${letter}`))
-      ));
+      const year = assessmentTargetYearGroup(selectedValues("year")).replace("SHS", "");
+      classSuggestions.replaceChildren(...(year
+        ? Array.from("ABCDEFG", (letter) => new Option(`${year}${letter}`, `${year}${letter}`))
+        : []));
     };
     updateClassSuggestions();
     renderClassSelections();
@@ -11884,6 +12168,7 @@
         }));
         if (controller.signal.aborted) return;
         let availableTotal = 0;
+        const yearsWithoutTopics = [];
         for (const { yearGroup, cacheKey, cached } of results) {
           const group = document.createElement("details");
           group.className = "assessment-topic-year";
@@ -11920,7 +12205,16 @@
             list.append(label);
           });
           appendEntries(cached.sections);
-          summary.textContent = `${yearGroup.replace("SHS", "SHS Year ")} · ${cached.sections.length} verified entries`;
+          summary.textContent = cached.sections.length
+            ? `${yearGroup.replace("SHS", "SHS Year ")} · ${cached.sections.length} verified entries`
+            : `${yearGroup.replace("SHS", "SHS Year ")} · no verified curriculum entries`;
+          if (!cached.sections.length) {
+            yearsWithoutTopics.push(yearGroup);
+            const unavailable = document.createElement("p");
+            unavailable.className = "field-help assessment-week-unavailable";
+            unavailable.textContent = `No verified curriculum entries are available for ${yearGroup.replace("SHS", "SHS Year ")}.`;
+            list.append(unavailable);
+          }
           group.append(summary, list);
           if (cached.nextOffset !== null) {
             const moreButton = document.createElement("button");
@@ -11963,9 +12257,12 @@
           availableTotal += cached.sections.length;
           topicList.append(group);
         }
+        const unavailableYearMessage = yearsWithoutTopics.length
+          ? ` No verified curriculum entries for ${yearsWithoutTopics.map((year) => year.replace("SHS", "SHS Year ")).join(", ")}; available years are still shown.`
+          : "";
         topicStatus.textContent = availableTotal
-          ? `${availableTotal} verified curriculum entries loaded across ${yearGroups.map((year) => year.replace("SHS", "SHS Year ")).join(", ")}. Scroll the assessment window to review the full list.`
-          : `No verified extracted curriculum content was found for ${subject} in the selected years. Check the resource year and verification status, or enter additional scope manually.`;
+          ? `${availableTotal} verified curriculum entries loaded across the selected years. Scroll the assessment window to review the full list.${unavailableYearMessage}`
+          : `No verified extracted curriculum content was found for ${subject} in the selected years. Check the resource year and verification status, or enter additional scope manually.${unavailableYearMessage}`;
         await updateCatalogPreview(subject, yearGroups);
         updateSelectedSummary();
       } catch (error) {
@@ -12054,6 +12351,7 @@
       for (const name of ["year", "assessmentType", "questionFormat", "duration"]) {
         assessmentSelections[name].clear();
         for (const rawValue of state.selections?.[name] || []) {
+          if (name === "assessmentType" && assessmentSelections[name].size > 0) continue;
           const value = String(rawValue);
           assessmentSelections[name].add(value);
           if (name === "duration" && !form.querySelector(`[data-assessment-options="duration"] [data-assessment-value="${CSS.escape(value)}"]`)) {

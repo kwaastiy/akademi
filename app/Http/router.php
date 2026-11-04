@@ -757,6 +757,16 @@ try {
         serve_curriculum_resource((new CurriculumReviewService())->originalResource((int)$matches[1], true), ($_GET['download'] ?? '') === '1');
     }
 
+    if ($path === '/api/curriculum/subject-review-status' && $method === 'GET') {
+        $user = require_user($auth);
+        $auth->requireRole($user, 'teacher');
+        $curriculumSearch = new CurriculumSearchService();
+        json_response([
+            'verified_subjects' => $curriculumSearch->verifiedSubjects(),
+            'subjects_in_review' => $curriculumSearch->subjectsUnderReview(),
+        ]);
+    }
+
     if ($path === '/api/curriculum/search' && $method === 'GET') {
         $user = require_user($auth);
         $auth->requireRole($user, 'teacher');
@@ -889,12 +899,25 @@ try {
             if (count($yearGroups) !== count($requestedYears) || !in_array($yearGroup, $yearGroups, true)) {
                 throw new RuntimeException('One or more selected SHS years are invalid.', 422);
             }
+            $orderedYears = $yearGroups;
+            usort($orderedYears, static fn(string $left, string $right): int => (int)substr($left, -1) <=> (int)substr($right, -1));
+            if ($yearGroup !== $orderedYears[array_key_last($orderedYears)]) {
+                throw new RuntimeException('The assessment level must be the highest selected SHS year.', 422);
+            }
             $input['year_groups'] = $yearGroups;
         }
         if (trim((string)($input['subject'] ?? '')) === '') {
             throw new RuntimeException('Enter the subject before generating a draft.', 422);
         }
         $search = new CurriculumSearchService();
+        if ($type === 'assessment'
+            && !$search->subjectHasVerifiedResource(trim((string)$input['subject']), $yearGroups)) {
+            throw new RuntimeException('No enabled, verified curriculum resources are available for this subject in the selected SHS years.', 422);
+        }
+        if ($type !== 'assessment'
+            && $search->subjectHasUnverifiedResource(trim((string)$input['subject']), $yearGroups)) {
+            throw new RuntimeException('This subject has curriculum resources awaiting administrator verification. Choose another subject until review is complete.', 422);
+        }
         $lessonSourceReference = null;
         if ($type === 'lesson') {
             $semesterNumber = filter_var($input['semester_number'] ?? null, FILTER_VALIDATE_INT);
@@ -1178,8 +1201,8 @@ try {
         $weeklyLessonSourceReferences = [];
         if ($type === 'assessment') {
             $selectedWeeklySections = $input['selected_week_sections'] ?? [];
-            if (!is_array($selectedWeeklySections) || count($selectedWeeklySections) > 117) {
-                throw new RuntimeException('Select no more than 39 weekly sections for each selected SHS year.', 422);
+            if (!is_array($selectedWeeklySections) || count($selectedWeeklySections) > 39) {
+                throw new RuntimeException('Select no more than 39 weekly sections total across the selected SHS years.', 422);
             }
             foreach ($selectedWeeklySections as $section) {
                 if (!is_array($section)) {

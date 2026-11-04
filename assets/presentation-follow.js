@@ -834,13 +834,25 @@
         }
       }
     }
-    if (image && visual) {
+    const visualPanel = visual || slide.visual_suggestion ? document.createElement("div") : null;
+    if (visualPanel) {
+      visualPanel.className = "presentation-slide-visual-panel";
+      if (visual) visualPanel.append(visual);
+      if (slide.visual_suggestion) {
+        const detail = document.createElement("p");
+        detail.className = "presentation-slide-visual-suggestion";
+        const label = document.createElement("b");
+        label.textContent = "Visual:";
+        detail.append(label, document.createTextNode(` ${String(slide.visual_suggestion)}`));
+        visualPanel.append(detail);
+      }
+    }
+    if (image || visualPanel) {
       const media = document.createElement("div");
       media.className = "presentation-media-column";
-      media.append(image, visual);
+      if (image) media.append(image);
+      if (visualPanel) media.append(visualPanel);
       article.append(media);
-    } else if (image || visual) {
-      article.append(image || visual);
     }
     if (slide.activity) {
       const activity = document.createElement("section");
@@ -852,14 +864,6 @@
       activityHeading.append(activityIcon, document.createTextNode(" Classroom activity"));
       activity.append(activityHeading, textElement("p", String(slide.activity)));
       article.append(activity);
-    }
-    if (slide.visual_suggestion) {
-      const detail = document.createElement("p");
-      detail.className = "presentation-slide-visual-suggestion";
-      const label = document.createElement("b");
-      label.textContent = "Visual:";
-      detail.append(label, document.createTextNode(` ${String(slide.visual_suggestion)}`));
-      article.append(detail);
     }
     if (mode !== "all" && Number(data.reveal_total) > 0) {
       article.append(textElement("small", `Content ${Math.min(Number(data.reveal_step) || 0, Number(data.reveal_total))} of ${data.reveal_total}`, "presentation-follow-reveal-progress"));
@@ -882,8 +886,8 @@
           item.style.setProperty("--reveal-delay", `${index * 70}ms`);
         });
       });
-      const detail = article.querySelector(":scope > .presentation-slide-visual-suggestion");
-      const previousDetail = previousArticle?.querySelector(":scope > .presentation-slide-visual-suggestion");
+      const detail = article.querySelector(".presentation-slide-visual-suggestion");
+      const previousDetail = previousArticle?.querySelector(".presentation-slide-visual-suggestion");
       if (detail?.textContent.trim() && detail.textContent !== previousDetail?.textContent) {
         detail.classList.add("presentation-item-zoom-in");
       }

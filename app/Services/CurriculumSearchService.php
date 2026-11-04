@@ -7,6 +7,129 @@ use Akademi\Database\Connection;
 
 final class CurriculumSearchService
 {
+    public function verifiedSubjects(): array
+    {
+        $statement = Connection::get()->query(
+            "SELECT DISTINCT TRIM(subject_name) AS subject_name, year_group
+             FROM curriculum_documents
+             WHERE NULLIF(TRIM(subject_name), '') IS NOT NULL
+               AND review_status = 'verified'
+               AND is_enabled = 1
+               AND extraction_status = 'extracted'"
+        );
+        $subjects = [];
+        foreach ($statement->fetchAll() as $row) {
+            $subject = trim((string)$row['subject_name']);
+            if ($subject === '') {
+                continue;
+            }
+            foreach (explode(',', (string)$row['year_group']) as $yearGroup) {
+                $yearGroup = trim($yearGroup);
+                if (!in_array($yearGroup, ['SHS1', 'SHS2', 'SHS3'], true)) {
+                    continue;
+                }
+                $subjects[$this->normalizeSubject($subject)][$yearGroup] ??= $subject;
+            }
+        }
+
+        $verified = [];
+        foreach ($subjects as $yearGroups) {
+            foreach ($yearGroups as $yearGroup => $subject) {
+                $verified[] = ['subject' => $subject, 'year_group' => $yearGroup];
+            }
+        }
+        return $verified;
+    }
+
+    public function subjectsUnderReview(): array
+    {
+        $statement = Connection::get()->query(
+            "SELECT DISTINCT COALESCE(NULLIF(TRIM(subject_name), ''), title) AS subject_name, year_group
+             FROM curriculum_documents
+             WHERE COALESCE(NULLIF(TRIM(subject_name), ''), TRIM(title)) <> ''
+               AND review_status IN ('unreviewed', 'in_review')"
+        );
+        $subjects = [];
+        foreach ($statement->fetchAll() as $row) {
+            $subject = trim((string)$row['subject_name']);
+            $subjectKey = $this->normalizeSubject($subject);
+            if ($subjectKey === '') {
+                continue;
+            }
+            if (in_array($subjectKey, ['maths', 'mathematics'], true)) {
+                $subjectKey = 'mathematics';
+            } elseif (in_array($subjectKey, ['additional maths', 'additional mathematics'], true)) {
+                $subjectKey = 'additional mathematics';
+            }
+            foreach (explode(',', (string)$row['year_group']) as $yearGroup) {
+                $yearGroup = trim($yearGroup);
+                if (!in_array($yearGroup, ['SHS1', 'SHS2', 'SHS3'], true)) {
+                    continue;
+                }
+                $subjects[$subjectKey][$yearGroup] ??= $subject;
+            }
+        }
+
+        $pending = [];
+        foreach ($subjects as $yearGroups) {
+            foreach ($yearGroups as $yearGroup => $subject) {
+                $pending[] = ['subject' => $subject, 'year_group' => $yearGroup];
+            }
+        }
+        return $pending;
+    }
+
+    public function subjectHasUnverifiedResource(string $subject, array $yearGroups): bool
+    {
+        $subject = trim($subject);
+        foreach (array_unique($yearGroups) as $yearGroup) {
+            if (!in_array($yearGroup, ['SHS1', 'SHS2', 'SHS3'], true)) {
+                continue;
+            }
+            $parameters = ['year_group' => $yearGroup];
+            $subjectCondition = $this->subjectDocumentCondition($subject, 'd', $parameters);
+            $statement = Connection::get()->prepare(
+                "SELECT SUM(d.review_status IN ('unreviewed', 'in_review')) AS pending_count
+                 FROM curriculum_documents d
+                 WHERE FIND_IN_SET(:year_group, d.year_group) > 0
+                   AND {$subjectCondition}"
+            );
+            $statement->execute($parameters);
+            $status = $statement->fetch();
+            if ((int)($status['pending_count'] ?? 0) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function subjectHasVerifiedResource(string $subject, array $yearGroups): bool
+    {
+        $subject = trim($subject);
+        foreach (array_unique($yearGroups) as $yearGroup) {
+            if (!in_array($yearGroup, ['SHS1', 'SHS2', 'SHS3'], true)) {
+                continue;
+            }
+            $parameters = ['year_group' => $yearGroup];
+            $subjectCondition = $this->subjectDocumentCondition($subject, 'd', $parameters);
+            $statement = Connection::get()->prepare(
+                "SELECT 1
+                 FROM curriculum_documents d
+                 WHERE FIND_IN_SET(:year_group, d.year_group) > 0
+                   AND d.review_status = 'verified'
+                   AND d.is_enabled = 1
+                   AND d.extraction_status = 'extracted'
+                   AND {$subjectCondition}
+                 LIMIT 1"
+            );
+            $statement->execute($parameters);
+            if ($statement->fetchColumn() !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function verifiedStructure(
         ?string $yearGroup = null,
         string $query = '',

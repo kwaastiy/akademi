@@ -236,7 +236,7 @@
   .presentation-follow-questions form label { grid-column: 1; }
   .presentation-follow-questions form button { justify-self: end; }
 }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) {
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
   grid-template-rows: auto auto auto auto auto auto;
@@ -251,8 +251,6 @@
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) header { grid-column: 1; grid-row: 1; }
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) h4 { grid-column: 1; grid-row: 2; }
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) ul { grid-column: 1; grid-row: 3; align-self: start; }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual) .presentation-visual { grid-column: 2; grid-row: 1 / 7; align-self: center; height: fit-content; }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual) .presentation-visual { align-self: center; height: fit-content; min-height: min-content; }
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-media-column {
   grid-column: 2;
   grid-row: 1 / 7;
@@ -265,7 +263,6 @@
   height: 100%;
 }
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-slide-activity { grid-column: 1; grid-row: 4; align-self: start; min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) > p { grid-column: 1; grid-row: 5; margin: 0; overflow-wrap: anywhere; }
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-follow-reveal-progress { grid-column: 1; grid-row: 6; margin-top: .4cqi; }
 .presentation-follow-stage .presentation-visual { box-sizing: border-box; width: 100%; min-width: 0; min-height: 0; max-height: none; height: 100%; gap: .8cqi; margin: 0; padding: 1.2cqi; overflow: hidden; }
 .presentation-follow-stage .presentation-visual > strong { font-size: clamp(9px, 1.1cqi, 12px); }
@@ -379,20 +376,26 @@
 .presentation-follow-stage .presentation-slide-preview li { overflow-wrap: anywhere; }
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) {
   grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
-  grid-template-rows: auto auto auto auto auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
   align-content: start;
   column-gap: 2cqi;
   row-gap: .7cqi;
 }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) header { grid-column: 1; grid-row: 1; }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) h4 { grid-column: 1; grid-row: 2; }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) ul {
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) header { grid-column: 1; grid-row: 1; }
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) h4 { grid-column: 1; grid-row: 2; }
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) ul {
   grid-column: 1;
   grid-row: 3;
-  align-self: start;
+  align-self: stretch;
+  min-height: 0;
+  overflow: auto;
+  align-content: space-evenly;
 }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual) .presentation-visual,
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-media-column {
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) ul {
+  grid-column: 1;
+  grid-row: 3;
+}
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) .presentation-media-column {
   grid-column: 2;
   grid-row: 1 / 7;
   align-self: stretch;
@@ -402,15 +405,19 @@
   height: auto;
   overflow: auto;
 }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-slide-activity { grid-column: 1; grid-row: 4; align-self: start; min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) > .presentation-slide-visual-suggestion { grid-column: 1; grid-row: 5; overflow-wrap: anywhere; }
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) .presentation-slide-activity { grid-column: 1; grid-row: 4; align-self: start; min-width: 0; margin: 0; overflow-wrap: anywhere; }
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) > .presentation-follow-reveal-progress { grid-column: 1; grid-row: 6; }
+.presentation-follow-stage .presentation-slide-visual-panel { grid-template-rows: minmax(0, 1fr) auto; align-content: stretch; height: 100%; }
+.presentation-follow-stage .presentation-slide-visual-panel .presentation-slide-visual-suggestion { margin: 0; padding: 4px 6px; overflow-wrap: anywhere; font-size: clamp(10px, 1.3vh, 14px); }
 .presentation-follow-stage .presentation-media-column {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   align-self: stretch;
   min-height: 0;
   height: 100%;
+}
+.presentation-follow-stage .presentation-media-column:not(:has(.presentation-slide-image)) {
+  grid-template-rows: minmax(0, 1fr);
 }
 .presentation-follow-stage .presentation-media-column .presentation-slide-image,
 .presentation-follow-stage .presentation-media-column .presentation-visual {
@@ -420,12 +427,15 @@
   max-height: none;
   overflow: hidden;
 }
-.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image) .presentation-media-column {
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) .presentation-media-column {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
   align-content: stretch;
   align-self: stretch;
   height: 100%;
+}
+.presentation-follow-stage .presentation-slide-preview:has(.presentation-visual, .presentation-slide-image, .presentation-slide-visual-suggestion) .presentation-media-column:not(:has(.presentation-slide-image)) {
+  grid-template-rows: minmax(0, 1fr);
 }
 .presentation-follow-stage .presentation-slide-preview:has(.presentation-slide-image):not(:has(.presentation-visual)) > .presentation-slide-image {
   grid-column: 2;
