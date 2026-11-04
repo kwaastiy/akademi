@@ -108,6 +108,6 @@ $heading = $headings[$mode] ?? $headings['login'];
   <script src="<?= e(app_url('assets/theme.js?v=2')) ?>" defer></script>
   <script src="<?= e(app_url('assets/notifications.js?v=20')) ?>" defer></script>
   <script src="<?= e(app_url('assets/progress.js?v=5')) ?>" defer></script>
-  <script src="<?= e(app_url('assets/auth.js?v=18')) ?>" defer></script>
+  <script src="<?= e(app_url('assets/auth.js?v=19')) ?>" defer></script>
 </body>
 </html>

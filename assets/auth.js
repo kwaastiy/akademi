@@ -89,9 +89,7 @@
       }
       showMessage(result.message || "If an account is available, a verification code has been sent.", true);
       if (form.id === "login-form") {
-        const url = new URL(window.location.href);
-        url.pathname = result.verify_path;
-        window.location.assign(url.toString());
+        window.location.assign(result.verify_path);
       }
     } catch (error) {
       showMessage(error instanceof Error ? error.message : "The request failed.");
