@@ -33,9 +33,9 @@
 .presentation-call-controls button:focus-visible,
 .presentation-call-tile video:focus-visible { outline: 3px solid #4f8d67; outline-offset: 2px; }
 .presentation-call-controls .presentation-call-secondary { color: var(--ink, #25352c); background: var(--paper, #fff); }
-.presentation-call-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 8px; }
+.presentation-call-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 190px)); align-items: start; gap: 8px; }
 .presentation-call-grid:empty { display: none; }
-.presentation-call-tile { position: relative; min-width: 0; overflow: hidden; aspect-ratio: 16 / 9; border-radius: 9px; background: #17231d; }
+.presentation-call-tile { position: relative; width: 100%; min-width: 0; overflow: hidden; aspect-ratio: 1 / 1; border-radius: 9px; background: #17231d; }
 .presentation-call-tile video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .presentation-call-tile[data-camera-off] video { visibility: hidden; }
 .presentation-call-camera-status { position: absolute; inset: 0; display: none; place-items: center; color: #d7e3da; font-size: 11px; }
@@ -51,7 +51,7 @@
 .presentation-call-prompt .presentation-call-controls button { flex: 1 1 180px; }
 .presentation-call-teacher { grid-column: 1 / -1; margin: 8px 0 12px; }
 .presentation-call-teacher .presentation-call-heading { align-items: flex-start; }
-.presentation-call-teacher .presentation-call-grid { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); max-height: 30vh; overflow-y: auto; }
+.presentation-call-teacher .presentation-call-grid { max-height: min(42vh, 420px); overflow-y: auto; }
 .presentation-follow-experience { grid-template-rows: minmax(0, 1fr) auto auto; }
 .presentation-follow-stage { grid-row: 1; }
 .presentation-call-student { grid-column: 1; grid-row: 2; max-height: 22vh; overflow-y: auto; }
@@ -60,6 +60,6 @@
   .presentation-call-heading { align-items: flex-start; flex-direction: column; }
   .presentation-call-controls { width: 100%; }
   .presentation-call-controls button { flex: 1 1 135px; }
-  .presentation-call-student .presentation-call-grid { grid-template-columns: repeat(auto-fit, minmax(min(145px, 100%), 1fr)); }
-  .presentation-call-student { max-height: 28vh; }
+  .presentation-call-student .presentation-call-grid { grid-template-columns: repeat(auto-fill, minmax(min(115px, 100%), 145px)); }
+  .presentation-call-student { max-height: 34vh; }
 }

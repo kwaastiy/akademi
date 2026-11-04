@@ -31,14 +31,23 @@
   const directCount = document.querySelector("[data-follow-direct-count]");
   const directNotification = document.querySelector("[data-follow-direct-notification]");
   const callStatus = document.querySelector("[data-follow-call-status]");
+  const callPanel = document.querySelector("[data-follow-call]");
   const callGrid = document.querySelector("[data-follow-call-grid]");
   const callEnableButton = document.querySelector("[data-follow-call-enable]");
   const callMicButton = document.querySelector("[data-follow-call-mic]");
   const callCameraButton = document.querySelector("[data-follow-call-camera]");
   const callLeaveButton = document.querySelector("[data-follow-call-leave]");
+  const callFramesButton = document.querySelector("[data-follow-call-frames]");
   const callPrompt = document.querySelector("[data-follow-call-prompt]");
   const callPromptJoin = document.querySelector("[data-follow-call-prompt-join]");
   const callPromptSkip = document.querySelector("[data-follow-call-prompt-skip]");
+  const setCallFrames = (visible) => {
+    callPanel.hidden = !visible;
+    callFramesButton.setAttribute("aria-pressed", String(visible));
+    callFramesButton.setAttribute("aria-label", visible ? "Hide live video frames" : "Show live video frames");
+    callFramesButton.title = visible ? "Hide live video frames" : "Show live video frames";
+    callFramesButton.innerHTML = `<i class="fa-solid fa-users-viewfinder" aria-hidden="true"></i><span>${visible ? "Hide" : "Videos"}</span>`;
+  };
   const themes = new Set(["modern", "editorial", "vibrant", "data", "minimal"]);
   let timer = null;
   let presenceTimer = null;
@@ -1172,6 +1181,7 @@
       callMicButton.hidden = !media.audio;
       callCameraButton.hidden = !media.video;
       callLeaveButton.hidden = !media.audio && !media.video;
+      setCallFrames(true);
       callPrompt?.close();
     } catch (error) {
       callStatus.textContent = error instanceof Error ? error.message : "Camera and microphone could not be started.";
@@ -1190,9 +1200,11 @@
       return;
     }
     callMicButton.setAttribute("aria-pressed", String(enabled));
+    callMicButton.setAttribute("aria-label", enabled ? "Mute microphone" : "Unmute microphone");
+    callMicButton.title = enabled ? "Mute microphone" : "Unmute microphone";
     callMicButton.innerHTML = enabled
-      ? '<i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic'
-      : '<i class="fa-solid fa-microphone-slash" aria-hidden="true"></i> Unmute mic';
+      ? '<i class="fa-solid fa-microphone" aria-hidden="true"></i><span>Mute</span>'
+      : '<i class="fa-solid fa-microphone-slash" aria-hidden="true"></i><span>Unmute</span>';
   });
   callCameraButton?.addEventListener("click", () => {
     const enabled = callCameraButton.getAttribute("aria-pressed") !== "true";
@@ -1201,10 +1213,13 @@
       return;
     }
     callCameraButton.setAttribute("aria-pressed", String(enabled));
+    callCameraButton.setAttribute("aria-label", enabled ? "Turn camera off" : "Turn camera on");
+    callCameraButton.title = enabled ? "Turn camera off" : "Turn camera on";
     callCameraButton.innerHTML = enabled
-      ? '<i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off'
-      : '<i class="fa-solid fa-video-slash" aria-hidden="true"></i> Turn camera on';
+      ? '<i class="fa-solid fa-camera" aria-hidden="true"></i><span>Camera</span>'
+      : '<i class="fa-solid fa-video-slash" aria-hidden="true"></i><span>Video on</span>';
   });
+  callFramesButton?.addEventListener("click", () => setCallFrames(callPanel.hidden));
   callLeaveButton?.addEventListener("click", async () => {
     await presentationCall?.leave();
     callEnableButton.hidden = false;
@@ -1213,6 +1228,7 @@
     callLeaveButton.hidden = true;
     callMicButton.setAttribute("aria-pressed", "true");
     callCameraButton.setAttribute("aria-pressed", "true");
+    setCallFrames(false);
   });
   if (participantName) startFollowing();
   joinForm.addEventListener("submit", (event) => {

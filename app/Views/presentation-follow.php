@@ -18,9 +18,9 @@ header('X-Robots-Tag: noindex, nofollow');
   <link rel="stylesheet" href="<?= e(app_url('assets/action-icons.css')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/styles.css?v=170')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/presentation-follow.css?v=43')) ?>">
-  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-call.css?v=3')) ?>">
+  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-call.css?v=4')) ?>">
   <script src="<?= e(app_url('assets/presentation-call.js?v=3')) ?>" defer></script>
-  <script src="<?= e(app_url('assets/presentation-follow.js?v=37')) ?>" defer></script>
+  <script src="<?= e(app_url('assets/presentation-follow.js?v=38')) ?>" defer></script>
   <script src="<?= e(app_url('assets/action-icons.js?v=1')) ?>" defer></script>
 </head>
 <body class="presentation-follow-page">
@@ -47,15 +47,9 @@ header('X-Robots-Tag: noindex, nofollow');
         <div class="presentation-follow-stage" data-follow-stage>
           <div class="presentation-follow-placeholder">Waiting for the teacher to start the presentation…</div>
         </div>
-        <section class="presentation-call presentation-call-student" data-follow-call aria-label="Live audio and video">
+        <section class="presentation-call presentation-call-student" data-follow-call aria-label="Live audio and video" hidden>
           <div class="presentation-call-heading">
-            <div><strong>Live audio &amp; video</strong><p data-follow-call-status>Camera and microphone are off. Join when you are ready.</p></div>
-            <div class="presentation-call-controls">
-              <button type="button" data-follow-call-enable><i class="fa-solid fa-video" aria-hidden="true"></i> Join audio/video</button>
-              <button type="button" data-follow-call-mic hidden aria-pressed="true"><i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic</button>
-              <button type="button" data-follow-call-camera hidden aria-pressed="true"><i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off</button>
-              <button type="button" data-follow-call-leave hidden><i class="fa-solid fa-phone-slash" aria-hidden="true"></i> Leave call</button>
-            </div>
+            <div><strong>Live classroom video</strong><p data-follow-call-status>Camera and microphone are off. Join when you are ready.</p></div>
           </div>
           <div class="presentation-call-grid" data-follow-call-grid></div>
         </section>
@@ -64,6 +58,11 @@ header('X-Robots-Tag: noindex, nofollow');
           <div class="presentation-follow-toolbar">
             <strong data-follow-timer aria-live="off"></strong>
             <strong data-follow-count aria-live="polite"></strong>
+            <button type="button" data-follow-call-enable aria-label="Join audio and video call" title="Join audio and video call"><i class="fa-solid fa-video" aria-hidden="true"></i><span>Join call</span></button>
+            <button type="button" data-follow-call-mic hidden aria-pressed="true" aria-label="Mute microphone" title="Mute microphone"><i class="fa-solid fa-microphone" aria-hidden="true"></i><span>Mute</span></button>
+            <button type="button" data-follow-call-camera hidden aria-pressed="true" aria-label="Turn camera off" title="Turn camera off"><i class="fa-solid fa-camera" aria-hidden="true"></i><span>Camera</span></button>
+            <button type="button" data-follow-call-leave hidden aria-label="Leave audio and video call" title="Leave call"><i class="fa-solid fa-phone-slash" aria-hidden="true"></i><span>Leave</span></button>
+            <button type="button" data-follow-call-frames aria-pressed="false" aria-label="Show live video frames" title="Show live video frames"><i class="fa-solid fa-users-viewfinder" aria-hidden="true"></i><span>Videos</span></button>
             <button type="button" data-follow-dialog-open="poll" hidden><i class="fa-solid fa-square-poll-vertical" aria-hidden="true"></i> Poll</button>
             <button type="button" data-follow-dialog-open="pace"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Class pace <span class="presentation-follow-counter" data-follow-pace-count hidden></span></button>
             <button type="button" data-follow-dialog-open="chat"><i class="fa-solid fa-comments" aria-hidden="true"></i> Class chat <span class="presentation-follow-counter" data-follow-question-count hidden></span></button>
