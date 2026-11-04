@@ -18,9 +18,9 @@ header('X-Robots-Tag: noindex, nofollow');
   <link rel="stylesheet" href="<?= e(app_url('assets/action-icons.css')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/styles.css?v=170')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/presentation-follow.css?v=43')) ?>">
-  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-call.css?v=2')) ?>">
-  <script src="<?= e(app_url('assets/presentation-call.js?v=2')) ?>" defer></script>
-  <script src="<?= e(app_url('assets/presentation-follow.js?v=36')) ?>" defer></script>
+  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-call.css?v=3')) ?>">
+  <script src="<?= e(app_url('assets/presentation-call.js?v=3')) ?>" defer></script>
+  <script src="<?= e(app_url('assets/presentation-follow.js?v=37')) ?>" defer></script>
   <script src="<?= e(app_url('assets/action-icons.js?v=1')) ?>" defer></script>
 </head>
 <body class="presentation-follow-page">

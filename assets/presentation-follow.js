@@ -1137,7 +1137,13 @@
         participantName,
         basePath,
         grid: callGrid,
-        onStatus: (message) => { callStatus.textContent = message; }
+        onStatus: (message) => { callStatus.textContent = message; },
+        onMediaState: (media) => {
+          callEnableButton.hidden = media.audio || media.video;
+          callMicButton.hidden = !media.audio;
+          callCameraButton.hidden = !media.video;
+          callLeaveButton.hidden = !media.audio && !media.video;
+        }
       }) || null;
       presentationCall?.start();
       if (callPrompt?.showModal && !callPrompt.open) callPrompt.showModal();
@@ -1158,12 +1164,14 @@
     callEnableButton.disabled = true;
     callStatus.textContent = "Requesting camera and microphone permission…";
     try {
-      await presentationCall.startMedia();
-      callStatus.textContent = "You are in the live call. Your microphone and camera are on.";
-      callEnableButton.hidden = true;
-      callMicButton.hidden = false;
-      callCameraButton.hidden = false;
-      callLeaveButton.hidden = false;
+      const media = await presentationCall.startMedia();
+      callStatus.textContent = media.audio && media.video ? "You are in the live call with your microphone and camera."
+        : media.audio ? "You joined the live call with your microphone."
+          : "You joined the live call with your camera.";
+      callEnableButton.hidden = media.audio || media.video;
+      callMicButton.hidden = !media.audio;
+      callCameraButton.hidden = !media.video;
+      callLeaveButton.hidden = !media.audio && !media.video;
       callPrompt?.close();
     } catch (error) {
       callStatus.textContent = error instanceof Error ? error.message : "Camera and microphone could not be started.";

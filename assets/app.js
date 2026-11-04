@@ -8493,22 +8493,28 @@
         csrf,
         name: "Teacher",
         grid: presentationCallGrid,
-        onStatus: (message) => { presentationCallStatus.textContent = message; }
+        onStatus: (message) => { presentationCallStatus.textContent = message; },
+        onMediaState: refreshPresentationCallButtons
       }) || null;
       presentationCall?.setParticipants(liveState?.participants || []);
       presentationCall?.start();
       presentationCallPanel.hidden = false;
       return presentationCall;
     };
-    const refreshPresentationCallButtons = (connected) => {
+    const refreshPresentationCallButtons = (media = { audio: false, video: false }) => {
+      const connected = media.audio || media.video;
       presentationCallEnable.hidden = connected;
-      presentationCallMic.hidden = !connected;
-      presentationCallCamera.hidden = !connected;
+      presentationCallMic.hidden = !media.audio;
+      presentationCallCamera.hidden = !media.video;
       presentationCallLeave.hidden = !connected;
-      presentationCallMic.setAttribute("aria-pressed", "true");
-      presentationCallCamera.setAttribute("aria-pressed", "true");
-      presentationCallMic.innerHTML = '<i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic';
-      presentationCallCamera.innerHTML = '<i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off';
+      if (media.audio) {
+        presentationCallMic.setAttribute("aria-pressed", "true");
+        presentationCallMic.innerHTML = '<i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic';
+      }
+      if (media.video) {
+        presentationCallCamera.setAttribute("aria-pressed", "true");
+        presentationCallCamera.innerHTML = '<i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off';
+      }
     };
     presentationCallEnable.addEventListener("click", async () => {
       const button = presentationCallEnable;
@@ -8517,9 +8523,12 @@
       try {
         const call = createPresentationCall();
         if (!call) throw new Error("Audio and video calls are unavailable in this browser.");
-        await call.startMedia();
-        presentationCallStatus.textContent = "Your camera and microphone are on. Students can join the call from their presentation page.";
-        refreshPresentationCallButtons(true);
+        const media = await call.startMedia();
+        presentationCallStatus.textContent = media.audio && media.video
+          ? "Your camera and microphone are on. Students can join the call from their presentation page."
+          : media.audio ? "You joined with your microphone. Students can join from their presentation page."
+            : "You joined with your camera. Students can join from their presentation page.";
+        refreshPresentationCallButtons(media);
       } catch (error) {
         presentationCallStatus.textContent = error instanceof Error ? error.message : "Camera and microphone could not be started.";
       } finally {

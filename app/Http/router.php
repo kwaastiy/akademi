@@ -18,7 +18,7 @@ use Akademi\Services\WorkspaceService;
 
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
-header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+header('Permissions-Policy: camera=(self), microphone=(self), geolocation=()');
 header('Cache-Control: no-store, private');
 
 $requestId = bin2hex(random_bytes(16));

@@ -38,39 +38,86 @@
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Camera and microphone access requires a supported browser and a secure HTTPS connection.");
       }
-      if (!this.localStream) {
-        this.localStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
-          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 360 } }
-        });
+      if (!this.localStream || !this.localStream.getTracks().some((track) => track.readyState === "live")) {
+        this.localTile?.remove();
+        this.localTile = null;
+        this.localStream?.getTracks().forEach((track) => track.stop());
+        const audio = { echoCancellation: true, noiseSuppression: true };
+        const video = { facingMode: "user", width: { ideal: 640 }, height: { ideal: 360 } };
+        try {
+          this.localStream = await navigator.mediaDevices.getUserMedia({ audio, video });
+        } catch (bothError) {
+          try {
+            this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            this.options.onStatus?.("Camera unavailable; joined with microphone only.");
+          } catch (audioError) {
+            try {
+              this.localStream = await navigator.mediaDevices.getUserMedia({ audio: false, video });
+              this.options.onStatus?.("Microphone unavailable; joined with camera only.");
+            } catch (videoError) {
+              const details = [bothError, audioError, videoError]
+                .filter((error) => error instanceof Error)
+                .map((error) => error.message);
+              throw new Error(`Camera and microphone access failed. Check browser permissions and connected devices.${details.length ? ` ${details.at(-1)}` : ""}`);
+            }
+          }
+        }
+        this.localStream.getTracks().forEach((track) => track.addEventListener("ended", () => this.updateLocalMediaState()));
         this.renderLocalVideo();
+        this.updateLocalMediaState();
       }
-      this.start();
-      for (const [peerId, peer] of this.peers) {
-        await this.attachLocalTracks(peer);
-        if (this.role === "teacher") await this.makeOffer(peerId, peer);
+      try {
+        this.start();
+        for (const [peerId, peer] of this.peers) {
+          await this.attachLocalTracks(peer);
+          if (this.role === "teacher") await this.makeOffer(peerId, peer);
+        }
+        if (this.role === "student") {
+          await this.sendSignal("ready", null);
+        } else {
+          this.participants.forEach((person) => {
+            const peerId = String(person.id);
+            if (!this.peers.has(peerId)) void this.createPeer(peerId, String(person.name || "Student"), true);
+            else void this.makeOffer(peerId, this.peers.get(peerId));
+          });
+        }
+      } catch (error) {
+        this.localStream?.getTracks().forEach((track) => track.stop());
+        this.localStream = null;
+        this.localTile?.remove();
+        this.localTile = null;
+        this.updateLocalMediaState();
+        throw error;
       }
-      if (this.role === "student") {
-        await this.sendSignal("ready", null);
-      } else {
-        this.participants.forEach((person) => {
-          const peerId = String(person.id);
-          if (!this.peers.has(peerId)) void this.createPeer(peerId, String(person.name || "Student"), true);
-          else void this.makeOffer(peerId, this.peers.get(peerId));
-        });
-      }
+      return this.getLocalMediaState();
     }
 
     setAudioEnabled(enabled) {
-      const tracks = this.localStream?.getAudioTracks() || [];
+      const tracks = (this.localStream?.getAudioTracks() || []).filter((track) => track.readyState === "live");
       tracks.forEach((track) => { track.enabled = Boolean(enabled); });
+      this.updateLocalMediaState();
       return tracks.length > 0;
     }
 
     setVideoEnabled(enabled) {
-      const tracks = this.localStream?.getVideoTracks() || [];
+      const tracks = (this.localStream?.getVideoTracks() || []).filter((track) => track.readyState === "live");
       tracks.forEach((track) => { track.enabled = Boolean(enabled); });
+      this.localTile?.toggleAttribute("data-camera-off", !enabled && tracks.length > 0);
+      this.updateLocalMediaState();
       return tracks.length > 0;
+    }
+
+    getLocalMediaState() {
+      return {
+        audio: Boolean(this.localStream?.getAudioTracks().some((track) => track.readyState === "live")),
+        video: Boolean(this.localStream?.getVideoTracks().some((track) => track.readyState === "live"))
+      };
+    }
+
+    updateLocalMediaState() {
+      const state = this.getLocalMediaState();
+      this.localTile?.toggleAttribute("data-camera-off", !state.video);
+      this.options.onMediaState?.(state);
     }
 
     async pollSignals() {
@@ -224,6 +271,13 @@
         this.options.grid.append(tile);
       }
       const video = tile.querySelector("video");
+      stream.getVideoTracks().forEach((track) => {
+        const updateCameraState = () => tile.toggleAttribute("data-camera-off", track.muted || !track.enabled || track.readyState === "ended");
+        track.addEventListener("mute", updateCameraState);
+        track.addEventListener("unmute", updateCameraState);
+        track.addEventListener("ended", updateCameraState);
+        updateCameraState();
+      });
       if (video.srcObject !== stream) {
         video.srcObject = stream;
         void video.play().catch(() => {
@@ -343,7 +397,10 @@
       if (!local) video.addEventListener("click", () => void video.play().catch(() => {}));
       const label = document.createElement("span");
       label.textContent = local ? `${name} · You` : name;
-      tile.append(video, label);
+      const cameraStatus = document.createElement("small");
+      cameraStatus.className = "presentation-call-camera-status";
+      cameraStatus.textContent = "Camera off";
+      tile.append(video, label, cameraStatus);
       return tile;
     }
 
@@ -372,18 +429,20 @@
     }
 
     async leave() {
-      for (const peerId of this.peers.keys()) {
+      const peerIds = Array.from(this.peers.keys());
+      this.localStream?.getTracks().forEach((track) => track.stop());
+      this.localStream = null;
+      this.localTile?.remove();
+      this.localTile = null;
+      this.options.onMediaState?.({ audio: false, video: false });
+      peerIds.forEach((peerId) => this.closePeer(peerId));
+      await Promise.all(peerIds.map(async (peerId) => {
         try {
           await this.sendSignal("hangup", null, peerId);
         } catch (error) {
           this.options.onStatus?.(error instanceof Error ? error.message : "The call could not be closed cleanly.");
         }
-        this.closePeer(peerId);
-      }
-      this.localStream?.getTracks().forEach((track) => track.stop());
-      this.localStream = null;
-      this.localTile?.remove();
-      this.localTile = null;
+      }));
       this.options.onStatus?.("You left the audio/video call. Your camera and microphone are off.");
     }
 
