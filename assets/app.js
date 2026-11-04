@@ -7332,6 +7332,18 @@
       <div class="presentation-live-sharing" data-presentation-live-sharing hidden>
         <div class="presentation-live-controls" data-presentation-live-controls></div>
         <p class="presentation-join-notice" data-presentation-join-notice role="status" aria-live="polite"></p>
+        <section class="presentation-call presentation-call-teacher" data-presentation-call hidden aria-label="Live audio and video">
+          <div class="presentation-call-heading">
+            <div><strong>Live audio &amp; video</strong><p data-presentation-call-status>Camera and microphone are off.</p></div>
+            <div class="presentation-call-controls">
+              <button type="button" data-presentation-call-enable><i class="fa-solid fa-video" aria-hidden="true"></i> Start mic &amp; camera</button>
+              <button type="button" data-presentation-call-mic hidden aria-pressed="true"><i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic</button>
+              <button type="button" data-presentation-call-camera hidden aria-pressed="true"><i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off</button>
+              <button type="button" data-presentation-call-leave hidden><i class="fa-solid fa-phone-slash" aria-hidden="true"></i> Leave call</button>
+            </div>
+          </div>
+          <div class="presentation-call-grid" data-presentation-call-grid></div>
+        </section>
         <section class="presentation-feedback-card presentation-pace-card" data-presentation-pace-summary aria-label="Class pace responses">
           <h3><i class="fa-solid fa-gauge-high"></i> Class pace <span class="presentation-live-count" data-presentation-feedback-count="pace" hidden></span></h3>
           <div class="presentation-feedback-items" data-presentation-pace-items></div>
@@ -7412,6 +7424,13 @@
     const participantsDialog = dialog.querySelector("[data-presentation-participants-dialog]");
     const participantsClose = dialog.querySelector("[data-presentation-participants-close]");
     participantsClose.addEventListener("click", () => participantsDialog.close());
+    const presentationCallPanel = dialog.querySelector("[data-presentation-call]");
+    const presentationCallStatus = dialog.querySelector("[data-presentation-call-status]");
+    const presentationCallGrid = dialog.querySelector("[data-presentation-call-grid]");
+    const presentationCallEnable = dialog.querySelector("[data-presentation-call-enable]");
+    const presentationCallMic = dialog.querySelector("[data-presentation-call-mic]");
+    const presentationCallCamera = dialog.querySelector("[data-presentation-call-camera]");
+    const presentationCallLeave = dialog.querySelector("[data-presentation-call-leave]");
     const participantJoinNotice = dialog.querySelector("[data-presentation-join-notice]");
     const directMessageNotice = document.createElement("p");
     directMessageNotice.className = "presentation-direct-message-notice";
@@ -7438,6 +7457,7 @@
     let revealStep = 0;
     let lastRevealRender = null;
     let liveState = null;
+    let presentationCall = null;
     let annotations = [];
     let pointerState = null;
     let latestPointerState = null;
@@ -7954,6 +7974,7 @@
       const poll = state.active_poll;
       updateReactionFeedback(state.reaction_counts || {}, state.reaction_responses || []);
       renderParticipants(state.participants || []);
+      presentationCall?.setParticipants(state.participants || []);
       paceSummary.hidden = !feedbackPanels.pace;
       renderQuestionFeedback(Array.isArray(state.questions) ? state.questions : []);
       questionLiveFeedback.hidden = !feedbackPanels.questions;
@@ -8461,6 +8482,76 @@
         setFeedback(error instanceof Error ? error.message : "The classroom check could not be closed.", true);
       }
     });
+    const createPresentationCall = () => {
+      if (presentationCall) return presentationCall;
+      const basePath = document.querySelector('meta[name="app-base-path"]')?.content || "";
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
+      presentationCall = window.PresentationCall?.create({
+        role: "teacher",
+        simulationId: liveSession.id,
+        basePath,
+        csrf,
+        name: "Teacher",
+        grid: presentationCallGrid,
+        onStatus: (message) => { presentationCallStatus.textContent = message; }
+      }) || null;
+      presentationCall?.setParticipants(liveState?.participants || []);
+      presentationCall?.start();
+      presentationCallPanel.hidden = false;
+      return presentationCall;
+    };
+    const refreshPresentationCallButtons = (connected) => {
+      presentationCallEnable.hidden = connected;
+      presentationCallMic.hidden = !connected;
+      presentationCallCamera.hidden = !connected;
+      presentationCallLeave.hidden = !connected;
+      presentationCallMic.setAttribute("aria-pressed", "true");
+      presentationCallCamera.setAttribute("aria-pressed", "true");
+      presentationCallMic.innerHTML = '<i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic';
+      presentationCallCamera.innerHTML = '<i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off';
+    };
+    presentationCallEnable.addEventListener("click", async () => {
+      const button = presentationCallEnable;
+      button.disabled = true;
+      presentationCallStatus.textContent = "Requesting camera and microphone permission…";
+      try {
+        const call = createPresentationCall();
+        if (!call) throw new Error("Audio and video calls are unavailable in this browser.");
+        await call.startMedia();
+        presentationCallStatus.textContent = "Your camera and microphone are on. Students can join the call from their presentation page.";
+        refreshPresentationCallButtons(true);
+      } catch (error) {
+        presentationCallStatus.textContent = error instanceof Error ? error.message : "Camera and microphone could not be started.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+    presentationCallMic.addEventListener("click", () => {
+      const enabled = presentationCallMic.getAttribute("aria-pressed") !== "true";
+      if (!presentationCall?.setAudioEnabled(enabled)) {
+        presentationCallStatus.textContent = "Your microphone is unavailable. Leave and rejoin the call to try again.";
+        return;
+      }
+      presentationCallMic.setAttribute("aria-pressed", String(enabled));
+      presentationCallMic.innerHTML = enabled
+        ? '<i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic'
+        : '<i class="fa-solid fa-microphone-slash" aria-hidden="true"></i> Unmute mic';
+    });
+    presentationCallCamera.addEventListener("click", () => {
+      const enabled = presentationCallCamera.getAttribute("aria-pressed") !== "true";
+      if (!presentationCall?.setVideoEnabled(enabled)) {
+        presentationCallStatus.textContent = "Your camera is unavailable. Leave and rejoin the call to try again.";
+        return;
+      }
+      presentationCallCamera.setAttribute("aria-pressed", String(enabled));
+      presentationCallCamera.innerHTML = enabled
+        ? '<i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off'
+        : '<i class="fa-solid fa-video-slash" aria-hidden="true"></i> Turn camera on';
+    });
+    presentationCallLeave.addEventListener("click", async () => {
+      await presentationCall?.leave();
+      refreshPresentationCallButtons(false);
+    });
     liveButton.addEventListener("click", async () => {
       liveButton.disabled = true;
       liveButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><small>Wait</small>';
@@ -8515,6 +8606,7 @@
           );
           liveState.student_url = linkResult.url;
         }
+        createPresentationCall();
         result.url = currentStudentPresentationUrl(liveState.student_url);
         liveSession.url = result.url;
         saveActiveLivePresentation({
@@ -8545,6 +8637,8 @@
               const endedSessionId = liveSession.id;
               clearActiveLivePresentation();
               liveSession = null;
+              presentationCall?.stop();
+              presentationCall = null;
               if (ownerPollTimer !== null) window.clearTimeout(ownerPollTimer);
               ownerPollTimer = null;
               liveSharing.dataset.ended = "true";
@@ -8683,6 +8777,8 @@
               });
               clearActiveLivePresentation();
               if (liveSession?.id === sessionId) liveSession = null;
+              presentationCall?.stop();
+              presentationCall = null;
               if (ownerPollTimer !== null) window.clearTimeout(ownerPollTimer);
               ownerPollTimer = null;
               endButton.innerHTML = '<i class="fa-solid fa-check"></i><small>Done</small>';
@@ -8757,6 +8853,8 @@
     });
     dialog.addEventListener("close", () => {
       if (participantsDialog.open) participantsDialog.close();
+      presentationCall?.stop();
+      presentationCall = null;
       if (ownerPollTimer !== null) window.clearTimeout(ownerPollTimer);
       if (presentationClock !== null) window.clearInterval(presentationClock);
       if (pointerUpdateTimer !== null) window.clearTimeout(pointerUpdateTimer);

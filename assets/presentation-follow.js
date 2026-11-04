@@ -30,6 +30,15 @@
   const directStatus = document.querySelector("[data-follow-direct-status]");
   const directCount = document.querySelector("[data-follow-direct-count]");
   const directNotification = document.querySelector("[data-follow-direct-notification]");
+  const callStatus = document.querySelector("[data-follow-call-status]");
+  const callGrid = document.querySelector("[data-follow-call-grid]");
+  const callEnableButton = document.querySelector("[data-follow-call-enable]");
+  const callMicButton = document.querySelector("[data-follow-call-mic]");
+  const callCameraButton = document.querySelector("[data-follow-call-camera]");
+  const callLeaveButton = document.querySelector("[data-follow-call-leave]");
+  const callPrompt = document.querySelector("[data-follow-call-prompt]");
+  const callPromptJoin = document.querySelector("[data-follow-call-prompt-join]");
+  const callPromptSkip = document.querySelector("[data-follow-call-prompt-skip]");
   const themes = new Set(["modern", "editorial", "vibrant", "data", "minimal"]);
   let timer = null;
   let presenceTimer = null;
@@ -55,6 +64,7 @@
   let lastDirectParticipantsKey = "";
   let latestDirectParticipants = [];
   let latestDirectMessages = [];
+  let presentationCall = null;
   let directMessagesPending = false;
   let lastDirectUnreadByPeer = null;
   const ownAnswers = new Map();
@@ -718,6 +728,7 @@
 
   function showEnded(message) {
     stopped = true;
+    presentationCall?.stop();
     joinGate.hidden = true;
     experience.hidden = false;
     if (timer !== null) window.clearTimeout(timer);
@@ -1117,13 +1128,84 @@
     joinGate.hidden = true;
     experience.hidden = false;
     if (latestState) renderState(latestState);
-    void sendPresence().then(() => refreshDirectMessages());
+    void sendPresence().then(() => {
+      if (stopped) return;
+      presentationCall = window.PresentationCall?.create({
+        role: "student",
+        token,
+        participantId,
+        participantName,
+        basePath,
+        grid: callGrid,
+        onStatus: (message) => { callStatus.textContent = message; }
+      }) || null;
+      presentationCall?.start();
+      if (callPrompt?.showModal && !callPrompt.open) callPrompt.showModal();
+      void refreshDirectMessages();
+    });
     if (presenceTimer !== null) window.clearInterval(presenceTimer);
     presenceTimer = window.setInterval(() => void sendPresence(), 20_000);
     if (directRefreshTimer !== null) window.clearInterval(directRefreshTimer);
     directRefreshTimer = window.setInterval(() => void refreshDirectMessages(), 3000);
     void poll();
   };
+  const enableCall = async () => {
+    if (!presentationCall) {
+      callStatus.textContent = "Join the presentation before starting audio or video.";
+      return;
+    }
+    callPromptJoin.disabled = true;
+    callEnableButton.disabled = true;
+    callStatus.textContent = "Requesting camera and microphone permission…";
+    try {
+      await presentationCall.startMedia();
+      callStatus.textContent = "You are in the live call. Your microphone and camera are on.";
+      callEnableButton.hidden = true;
+      callMicButton.hidden = false;
+      callCameraButton.hidden = false;
+      callLeaveButton.hidden = false;
+      callPrompt?.close();
+    } catch (error) {
+      callStatus.textContent = error instanceof Error ? error.message : "Camera and microphone could not be started.";
+    } finally {
+      callPromptJoin.disabled = false;
+      callEnableButton.disabled = false;
+    }
+  };
+  callEnableButton?.addEventListener("click", () => void enableCall());
+  callPromptJoin?.addEventListener("click", () => void enableCall());
+  callPromptSkip?.addEventListener("click", () => callPrompt.close());
+  callMicButton?.addEventListener("click", () => {
+    const enabled = callMicButton.getAttribute("aria-pressed") !== "true";
+    if (!presentationCall?.setAudioEnabled(enabled)) {
+      callStatus.textContent = "Your microphone is unavailable. Leave and rejoin the call to try again.";
+      return;
+    }
+    callMicButton.setAttribute("aria-pressed", String(enabled));
+    callMicButton.innerHTML = enabled
+      ? '<i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic'
+      : '<i class="fa-solid fa-microphone-slash" aria-hidden="true"></i> Unmute mic';
+  });
+  callCameraButton?.addEventListener("click", () => {
+    const enabled = callCameraButton.getAttribute("aria-pressed") !== "true";
+    if (!presentationCall?.setVideoEnabled(enabled)) {
+      callStatus.textContent = "Your camera is unavailable. Leave and rejoin the call to try again.";
+      return;
+    }
+    callCameraButton.setAttribute("aria-pressed", String(enabled));
+    callCameraButton.innerHTML = enabled
+      ? '<i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off'
+      : '<i class="fa-solid fa-video-slash" aria-hidden="true"></i> Turn camera on';
+  });
+  callLeaveButton?.addEventListener("click", async () => {
+    await presentationCall?.leave();
+    callEnableButton.hidden = false;
+    callMicButton.hidden = true;
+    callCameraButton.hidden = true;
+    callLeaveButton.hidden = true;
+    callMicButton.setAttribute("aria-pressed", "true");
+    callCameraButton.setAttribute("aria-pressed", "true");
+  });
   if (participantName) startFollowing();
   joinForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1182,6 +1264,7 @@
       void poll();
     }
   });
+  window.addEventListener("pagehide", () => presentationCall?.stop(), { once: true });
   window.addEventListener("resize", () => requestAnimationFrame(() => fitSlideToStage()));
   window.visualViewport?.addEventListener("resize", () => requestAnimationFrame(() => fitSlideToStage()));
 })();

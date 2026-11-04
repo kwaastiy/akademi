@@ -656,6 +656,254 @@ final class PresentationSimulationService
         return ['joined' => true];
     }
 
+    public function studentCallSignals(string $token, string $participantId): array
+    {
+        $participantId = strtolower(trim($participantId));
+        if (!preg_match('/^[a-f0-9-]{36}$/D', $participantId)) {
+            throw new RuntimeException('Refresh the student presentation and try again.', 422);
+        }
+        $participantHash = hash('sha256', $participantId);
+        $lookup = Connection::get()->prepare(
+            'SELECT s.id FROM presentation_simulations s
+             INNER JOIN presentation_simulation_participants p ON p.simulation_id = s.id
+             WHERE s.share_token_hash = :token_hash AND s.status = \'active\'
+               AND s.expires_at > UTC_TIMESTAMP() AND p.participant_hash = :participant_hash
+             LIMIT 1'
+        );
+        $lookup->execute([
+            'token_hash' => hash('sha256', $token, true),
+            'participant_hash' => $participantHash,
+        ]);
+        $simulationId = $lookup->fetchColumn();
+        if ($simulationId === false) {
+            throw new RuntimeException('Join the live presentation before starting audio or video.', 409);
+        }
+        return [
+            'signals' => $this->consumeCallSignals((int)$simulationId, $participantHash),
+            'ice_servers' => $this->iceServers(),
+        ];
+    }
+
+    public function sendStudentCallSignal(string $token, array $input): array
+    {
+        $participantId = strtolower(trim((string)($input['participant_id'] ?? '')));
+        if (!preg_match('/^[a-f0-9-]{36}$/D', $participantId)) {
+            throw new RuntimeException('Refresh the student presentation and try again.', 422);
+        }
+        $participantHash = hash('sha256', $participantId);
+        $lookup = Connection::get()->prepare(
+            'SELECT s.id FROM presentation_simulations s
+             INNER JOIN presentation_simulation_participants p ON p.simulation_id = s.id
+             WHERE s.share_token_hash = :token_hash AND s.status = \'active\'
+               AND s.expires_at > UTC_TIMESTAMP() AND p.participant_hash = :participant_hash
+             LIMIT 1'
+        );
+        $lookup->execute([
+            'token_hash' => hash('sha256', $token, true),
+            'participant_hash' => $participantHash,
+        ]);
+        $simulationId = $lookup->fetchColumn();
+        if ($simulationId === false) {
+            throw new RuntimeException('Join the live presentation before starting audio or video.', 409);
+        }
+        $this->storeCallSignal((int)$simulationId, $participantHash, null, $input['signal_type'] ?? null, $input['payload'] ?? null);
+        return ['sent' => true];
+    }
+
+    public function teacherCallSignals(int $userId, int $simulationId): array
+    {
+        $this->assertCallOwner($userId, $simulationId);
+        return [
+            'signals' => $this->consumeCallSignals($simulationId, null),
+            'ice_servers' => $this->iceServers(),
+        ];
+    }
+
+    public function sendTeacherCallSignal(int $userId, int $simulationId, string $participantHash, array $input): array
+    {
+        if (!preg_match('/^[a-f0-9]{64}$/D', $participantHash)) {
+            throw new RuntimeException('The presentation participant is invalid.', 422);
+        }
+        $this->assertCallOwner($userId, $simulationId);
+        $participant = Connection::get()->prepare(
+            'SELECT 1 FROM presentation_simulation_participants
+             WHERE simulation_id = :simulation_id AND participant_hash = :participant_hash
+               AND last_seen_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 120 SECOND)
+             LIMIT 1'
+        );
+        $participant->execute(['simulation_id' => $simulationId, 'participant_hash' => $participantHash]);
+        if (!$participant->fetchColumn()) {
+            throw new RuntimeException('That participant is no longer connected to this presentation.', 409);
+        }
+        $this->storeCallSignal($simulationId, null, $participantHash, $input['signal_type'] ?? null, $input['payload'] ?? null);
+        return ['sent' => true];
+    }
+
+    private function assertCallOwner(int $userId, int $simulationId): void
+    {
+        $owner = Connection::get()->prepare(
+            'SELECT 1 FROM presentation_simulations
+             WHERE id = :id AND user_id = :user_id AND status = \'active\'
+               AND expires_at > UTC_TIMESTAMP() LIMIT 1'
+        );
+        $owner->execute(['id' => $simulationId, 'user_id' => $userId]);
+        if (!$owner->fetchColumn()) {
+            throw new RuntimeException('The live presentation is no longer available.', 404);
+        }
+    }
+
+    private function storeCallSignal(int $simulationId, ?string $senderHash, ?string $recipientHash, mixed $typeInput, mixed $payloadInput): void
+    {
+        $type = is_string($typeInput) ? $typeInput : '';
+        if (!in_array($type, ['ready', 'offer', 'answer', 'candidate', 'hangup', 'stream_name'], true)) {
+            throw new RuntimeException('The audio/video call signal is invalid.', 422);
+        }
+        if (($senderHash === null) === ($recipientHash === null)) {
+            throw new RuntimeException('The audio/video call destination is invalid.', 422);
+        }
+        $payload = null;
+        if (in_array($type, ['offer', 'answer'], true)) {
+            if (!is_array($payloadInput) || ($payloadInput['type'] ?? null) !== $type
+                || !is_string($payloadInput['sdp'] ?? null) || strlen($payloadInput['sdp']) > 12000) {
+                throw new RuntimeException('The audio/video connection description is invalid.', 422);
+            }
+            $payload = ['type' => $type, 'sdp' => $payloadInput['sdp']];
+        } elseif ($type === 'candidate') {
+            if (!is_array($payloadInput)
+                || (!is_string($payloadInput['candidate'] ?? null) && ($payloadInput['candidate'] ?? null) !== null)
+                || strlen((string)($payloadInput['candidate'] ?? '')) > 4096
+                || (!is_string($payloadInput['sdpMid'] ?? null) && ($payloadInput['sdpMid'] ?? null) !== null)
+                || strlen((string)($payloadInput['sdpMid'] ?? '')) > 100
+                || (!is_int($payloadInput['sdpMLineIndex'] ?? null) && ($payloadInput['sdpMLineIndex'] ?? null) !== null)) {
+                throw new RuntimeException('The audio/video network candidate is invalid.', 422);
+            }
+            $payload = [
+                'candidate' => $payloadInput['candidate'] ?? null,
+                'sdpMid' => $payloadInput['sdpMid'] ?? null,
+                'sdpMLineIndex' => $payloadInput['sdpMLineIndex'] ?? null,
+            ];
+        } elseif ($type === 'stream_name') {
+            if ($senderHash !== null || !is_array($payloadInput)
+                || !is_string($payloadInput['stream_id'] ?? null)
+                || preg_match('/^[a-zA-Z0-9_-]{1,128}$/D', $payloadInput['stream_id']) !== 1) {
+                throw new RuntimeException('The audio/video participant label is invalid.', 422);
+            }
+            $payload = [
+                'stream_id' => $payloadInput['stream_id'],
+                'name' => self::validateParticipantName($payloadInput['name'] ?? null),
+            ];
+        } elseif ($payloadInput !== null) {
+            throw new RuntimeException('This audio/video call signal must not include extra data.', 422);
+        }
+        $encodedPayload = $payload === null ? null : json_encode($payload, JSON_THROW_ON_ERROR);
+        if ($encodedPayload !== null && strlen($encodedPayload) > 16000) {
+            throw new RuntimeException('The audio/video call signal is too large.', 413);
+        }
+        $pdo = Connection::get();
+        $pdo->beginTransaction();
+        try {
+            $rate = $pdo->prepare(
+                'SELECT COUNT(*) FROM presentation_simulation_call_signals
+                 WHERE simulation_id = :simulation_id AND created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 MINUTE)
+                   AND ' . ($senderHash === null ? 'sender_hash IS NULL' : 'sender_hash = :sender_hash')
+            );
+            $rateParameters = ['simulation_id' => $simulationId];
+            if ($senderHash !== null) $rateParameters['sender_hash'] = $senderHash;
+            $rate->execute($rateParameters);
+            $limit = $senderHash === null ? 1200 : 240;
+            if ((int)$rate->fetchColumn() >= $limit) {
+                throw new RuntimeException('The call is sending too many updates. Wait a moment and try again.', 429);
+            }
+            $insert = $pdo->prepare(
+                'INSERT INTO presentation_simulation_call_signals
+                 (simulation_id, sender_hash, recipient_hash, signal_type, payload)
+                 VALUES (:simulation_id, :sender_hash, :recipient_hash, :signal_type, :payload)'
+            );
+            $insert->execute([
+                'simulation_id' => $simulationId,
+                'sender_hash' => $senderHash,
+                'recipient_hash' => $recipientHash,
+                'signal_type' => $type,
+                'payload' => $encodedPayload,
+            ]);
+            $pdo->prepare(
+                'DELETE FROM presentation_simulation_call_signals
+                 WHERE simulation_id = :simulation_id AND created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 10 MINUTE)'
+            )->execute(['simulation_id' => $simulationId]);
+            $pdo->commit();
+        } catch (\Throwable $exception) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $exception;
+        }
+    }
+
+    private function consumeCallSignals(int $simulationId, ?string $participantHash): array
+    {
+        $pdo = Connection::get();
+        $pdo->beginTransaction();
+        try {
+            $sql = 'SELECT s.id, s.sender_hash, p.participant_name, s.signal_type, s.payload
+                    FROM presentation_simulation_call_signals s
+                    LEFT JOIN presentation_simulation_participants p
+                      ON p.simulation_id = s.simulation_id AND p.participant_hash = s.sender_hash
+                    WHERE s.simulation_id = :simulation_id
+                      AND s.created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 10 MINUTE)
+                      AND ' . ($participantHash === null ? 's.sender_hash IS NOT NULL AND s.recipient_hash IS NULL' : 's.sender_hash IS NULL AND s.recipient_hash = :recipient_hash')
+                    . ' ORDER BY s.id LIMIT 200 FOR UPDATE';
+            $statement = $pdo->prepare($sql);
+            $parameters = ['simulation_id' => $simulationId];
+            if ($participantHash !== null) $parameters['recipient_hash'] = $participantHash;
+            $statement->execute($parameters);
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+            if ($rows !== []) {
+                $ids = array_map(static fn(array $row): int => (int)$row['id'], $rows);
+                $idParameters = ['simulation_id' => $simulationId];
+                $idPlaceholders = [];
+                foreach ($ids as $index => $id) {
+                    $key = 'signal_id_' . $index;
+                    $idPlaceholders[] = ':' . $key;
+                    $idParameters[$key] = $id;
+                }
+                $delete = $pdo->prepare(
+                    'DELETE FROM presentation_simulation_call_signals
+                     WHERE simulation_id = :simulation_id AND id IN (' . implode(',', $idPlaceholders) . ')'
+                );
+                $delete->execute($idParameters);
+            }
+            $pdo->commit();
+            return array_map(static fn(array $row): array => [
+                'from_id' => $row['sender_hash'] === null ? null : (string)$row['sender_hash'],
+                'from_name' => $row['participant_name'] === null ? null : (string)$row['participant_name'],
+                'signal_type' => (string)$row['signal_type'],
+                'payload' => $row['payload'] === null ? null : json_decode((string)$row['payload'], true, 8, JSON_THROW_ON_ERROR),
+            ], $rows);
+        } catch (\Throwable $exception) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $exception;
+        }
+    }
+
+    private function iceServers(): array
+    {
+        $servers = [];
+        $stunUrl = trim((string)\env('PRESENTATION_STUN_URL', 'stun:stun.l.google.com:19302'));
+        if ($stunUrl !== '') $servers[] = ['urls' => $stunUrl];
+        $turnUrl = trim((string)\env('PRESENTATION_TURN_URL', ''));
+        $turnSecret = (string)\env('PRESENTATION_TURN_SECRET', '');
+        if ($turnUrl !== '' && $turnSecret !== '') {
+            $expires = time() + 3600;
+            $username = $expires . ':akademi';
+            $servers[] = [
+                'urls' => array_values(array_filter(array_map('trim', explode(',', $turnUrl)))),
+                'username' => $username,
+                'credential' => base64_encode(hash_hmac('sha1', $username, $turnSecret, true)),
+            ];
+        } elseif ($turnUrl !== '' || $turnSecret !== '') {
+            throw new RuntimeException('Both PRESENTATION_TURN_URL and PRESENTATION_TURN_SECRET must be configured.', 503);
+        }
+        return $servers;
+    }
+
     public function interact(string $token, array $input): array
     {
         $participantId = strtolower(trim((string)($input['participant_id'] ?? '')));

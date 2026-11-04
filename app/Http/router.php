@@ -217,6 +217,15 @@ try {
     if (preg_match('#^/api/presentation-simulations/([a-fA-F0-9]{64})/join$#D', $path, $matches) && $method === 'POST') {
         json_response((new \Akademi\Services\PresentationSimulationService())->join($matches[1], request_json()));
     }
+    if (preg_match('#^/api/presentation-simulations/([a-fA-F0-9]{64})/call-signals$#D', $path, $matches)) {
+        $service = new \Akademi\Services\PresentationSimulationService();
+        if ($method === 'GET') {
+            json_response($service->studentCallSignals($matches[1], (string)($_GET['participant_id'] ?? '')));
+        }
+        if ($method === 'POST') {
+            json_response($service->sendStudentCallSignal($matches[1], request_json()));
+        }
+    }
     if (preg_match('#^/api/presentation-simulations/([a-fA-F0-9]{64})/interaction$#D', $path, $matches) && $method === 'POST') {
         json_response((new \Akademi\Services\PresentationSimulationService())->interact($matches[1], request_json()));
     }
@@ -587,6 +596,18 @@ try {
                 $matches[2],
                 $input['message'] ?? null
             ));
+        }
+    }
+    if (preg_match('#^/api/teacher/presentation-simulations/([1-9][0-9]*)/call-signals(?:/([a-f0-9]{64}))?$#D', $path, $matches)) {
+        $user = require_user($auth);
+        $auth->requireRole($user, 'teacher');
+        $service = new \Akademi\Services\PresentationSimulationService();
+        if ($method === 'GET' && !isset($matches[2])) {
+            json_response($service->teacherCallSignals((int)$user['id'], (int)$matches[1]));
+        }
+        if ($method === 'POST' && isset($matches[2])) {
+            Csrf::verifyRequest();
+            json_response($service->sendTeacherCallSignal((int)$user['id'], (int)$matches[1], $matches[2], request_json()));
         }
     }
     if (preg_match('#^/api/teacher/presentation-simulations/([1-9][0-9]*)/history$#D', $path, $matches) && $method === 'GET') {

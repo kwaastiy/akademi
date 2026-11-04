@@ -17,8 +17,10 @@ header('X-Robots-Tag: noindex, nofollow');
   <link rel="stylesheet" href="<?= e(app_url('assets/fontawesome/css/solid.min.css')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/action-icons.css')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/styles.css?v=170')) ?>">
-  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-follow.css?v=42')) ?>">
-  <script src="<?= e(app_url('assets/presentation-follow.js?v=35')) ?>" defer></script>
+  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-follow.css?v=43')) ?>">
+  <link rel="stylesheet" href="<?= e(app_url('assets/presentation-call.css?v=2')) ?>">
+  <script src="<?= e(app_url('assets/presentation-call.js?v=2')) ?>" defer></script>
+  <script src="<?= e(app_url('assets/presentation-follow.js?v=36')) ?>" defer></script>
   <script src="<?= e(app_url('assets/action-icons.js?v=1')) ?>" defer></script>
 </head>
 <body class="presentation-follow-page">
@@ -45,6 +47,18 @@ header('X-Robots-Tag: noindex, nofollow');
         <div class="presentation-follow-stage" data-follow-stage>
           <div class="presentation-follow-placeholder">Waiting for the teacher to start the presentation…</div>
         </div>
+        <section class="presentation-call presentation-call-student" data-follow-call aria-label="Live audio and video">
+          <div class="presentation-call-heading">
+            <div><strong>Live audio &amp; video</strong><p data-follow-call-status>Camera and microphone are off. Join when you are ready.</p></div>
+            <div class="presentation-call-controls">
+              <button type="button" data-follow-call-enable><i class="fa-solid fa-video" aria-hidden="true"></i> Join audio/video</button>
+              <button type="button" data-follow-call-mic hidden aria-pressed="true"><i class="fa-solid fa-microphone" aria-hidden="true"></i> Mute mic</button>
+              <button type="button" data-follow-call-camera hidden aria-pressed="true"><i class="fa-solid fa-camera" aria-hidden="true"></i> Turn camera off</button>
+              <button type="button" data-follow-call-leave hidden><i class="fa-solid fa-phone-slash" aria-hidden="true"></i> Leave call</button>
+            </div>
+          </div>
+          <div class="presentation-call-grid" data-follow-call-grid></div>
+        </section>
         <footer class="presentation-follow-footer">
           <span data-follow-title>Live classroom presentation</span>
           <div class="presentation-follow-toolbar">
@@ -88,6 +102,14 @@ header('X-Robots-Tag: noindex, nofollow');
           </form>
         </dialog>
       </div>
+      <dialog class="presentation-follow-dialog presentation-call-prompt" data-follow-call-prompt aria-labelledby="follow-call-prompt-title">
+        <header><h2 id="follow-call-prompt-title">Join the live audio/video call?</h2></header>
+        <p>Your microphone and camera will stay off unless you choose to join. If you join, your audio and video will be shared with the teacher and connected classmates. You can mute, turn off your camera, or leave at any time.</p>
+        <div class="presentation-call-controls">
+          <button type="button" data-follow-call-prompt-join><i class="fa-solid fa-video" aria-hidden="true"></i> Turn on mic and camera</button>
+          <button type="button" class="presentation-call-secondary" data-follow-call-prompt-skip>Continue without audio/video</button>
+        </div>
+      </dialog>
       <p class="presentation-follow-notification" data-follow-direct-notification role="status" aria-live="polite"></p>
     </section>
   </main>

@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "akademi-static-v278";
+const CACHE_NAME = "akademi-static-v280";
 const STATIC_ASSETS = [
   "./assets/styles.css",
   "./assets/fontawesome/css/fontawesome.min.css",
@@ -12,6 +12,8 @@ const STATIC_ASSETS = [
   "./assets/assessment-export.js",
   "./assets/presentation-follow.js",
   "./assets/presentation-follow.css",
+  "./assets/presentation-call.js",
+  "./assets/presentation-call.css",
   "./assets/assessment-rendering.js",
   "./assets/assessment-take.js",
   "./assets/assessment-take.css",

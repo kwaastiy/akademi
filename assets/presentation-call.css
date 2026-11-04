@@ -1,0 +1,59 @@
+.presentation-call {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line, #dce5dd);
+  border-radius: 12px;
+  background: var(--paper, #fff);
+}
+.presentation-call[hidden], .presentation-call-controls button[hidden] { display: none; }
+.presentation-call-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.presentation-call-heading strong { color: var(--ink, #25352c); font-size: 13px; }
+.presentation-call-heading p { margin: 3px 0 0; color: var(--muted, #77847c); font-size: 11px; }
+.presentation-call-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.presentation-call-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #b8cbbd;
+  border-radius: 7px;
+  color: #245642;
+  background: #f1f7f2;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.presentation-call-controls button:hover:not(:disabled),
+.presentation-call-controls button[aria-pressed="false"] { background: #e4efe6; }
+.presentation-call-controls button:disabled { opacity: .6; cursor: wait; }
+.presentation-call-controls .presentation-call-secondary { color: var(--ink, #25352c); background: var(--paper, #fff); }
+.presentation-call-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 8px; }
+.presentation-call-grid:empty { display: none; }
+.presentation-call-tile { position: relative; min-width: 0; overflow: hidden; aspect-ratio: 16 / 9; border-radius: 9px; background: #17231d; }
+.presentation-call-tile video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.presentation-call-tile-local { outline: 2px solid #4f8d67; outline-offset: -2px; }
+.presentation-call-tile span { position: absolute; right: 7px; bottom: 7px; max-width: calc(100% - 14px); padding: 4px 7px; overflow: hidden; border-radius: 5px; color: #fff; background: rgb(0 0 0 / 65%); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.presentation-call-tile[data-connection="failed"]::after { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgb(20 30 25 / 74%); content: "Connection lost"; font-size: 12px; }
+.presentation-call-prompt { width: min(460px, calc(100% - 24px)); padding: 22px; border: 1px solid var(--line, #dce5dd); border-radius: 14px; color: var(--ink, #25352c); background: var(--paper, #fff); }
+.presentation-call-prompt::backdrop { background: rgb(10 20 14 / 58%); }
+.presentation-call-prompt header h2 { margin: 0; font-size: 18px; }
+.presentation-call-prompt > p { color: var(--muted, #65736a); font-size: 12px; line-height: 1.6; }
+.presentation-call-prompt .presentation-call-controls { margin-top: 16px; }
+.presentation-call-prompt .presentation-call-controls button { flex: 1 1 180px; }
+.presentation-call-teacher { grid-column: 1 / -1; margin: 8px 0 12px; }
+.presentation-call-teacher .presentation-call-heading { align-items: flex-start; }
+.presentation-call-teacher .presentation-call-grid { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); max-height: 30vh; overflow-y: auto; }
+.presentation-follow-experience { grid-template-rows: minmax(0, 1fr) auto auto; }
+.presentation-follow-stage { grid-row: 1; }
+.presentation-call-student { grid-column: 1; grid-row: 2; max-height: 22vh; overflow-y: auto; }
+.presentation-follow-footer { grid-row: 3; }
+@media (max-width: 650px) {
+  .presentation-call-heading { align-items: flex-start; flex-direction: column; }
+  .presentation-call-controls { width: 100%; }
+  .presentation-call-controls button { flex: 1 1 135px; }
+  .presentation-call-student .presentation-call-grid { grid-template-columns: repeat(auto-fit, minmax(min(145px, 100%), 1fr)); }
+}
