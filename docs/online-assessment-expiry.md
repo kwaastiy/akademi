@@ -2,7 +2,7 @@
 
 Online assessment links default to seven days. Requests to the learner link, assessment library, and results manager also process overdue assessments and send any pending result emails. For expiry emails to be sent on time when nobody is using the app, schedule the CLI processor to run once per minute.
 
-Learner answer drafts are saved while an attempt is active. The server rejects draft saves and scored submissions after the deadline, preserving the last successfully saved answers without accepting late work. Learners move between questions with the Next question button; MCQ selection does not skip ahead automatically.
+Learner answer drafts are saved while an attempt is active, and progress is restored when they reconnect or reload. The server rejects draft saves and scored submissions after the overall deadline, preserving the last successfully saved answers without accepting late work. Each question automatically advances when its time expires; the last timed-out question is submitted if the overall deadline has not passed. MCQ selection does not skip ahead automatically.
 
 Changing the availability period on a published assessment resets the link's expiry to the selected number of days from the change. For a paused assessment, that period starts when it is resumed because the paused interval is added to the expiry.
 

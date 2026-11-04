@@ -251,7 +251,7 @@ try {
         )]);
     }
     if ($path === '/api/student/assessment/current' && $method === 'GET') {
-        json_response(['attempt' => (new OnlineAssessmentService())->current()]);
+        json_response(['attempt' => (new OnlineAssessmentService())->current((string)($_GET['assessment'] ?? ''))]);
     }
     if ($path === '/api/student/assessment/save' && $method === 'POST') {
         Csrf::verifyRequest();
@@ -263,7 +263,11 @@ try {
         if (!is_array($timedOutQuestions)) {
             throw new RuntimeException('The timed-out question list is invalid.', 422);
         }
-        json_response((new OnlineAssessmentService())->saveDraft($input['answers'], $timedOutQuestions));
+        $currentQuestionIndex = $input['current_question_index'] ?? null;
+        if ($currentQuestionIndex !== null && (!is_int($currentQuestionIndex) || $currentQuestionIndex < 0)) {
+            throw new RuntimeException('The current question position is invalid.', 422);
+        }
+        json_response((new OnlineAssessmentService())->saveDraft($input['answers'], $timedOutQuestions, $currentQuestionIndex));
     }
 
     if ($path === '/api/student/assessment/submit' && $method === 'POST') {
@@ -373,6 +377,17 @@ try {
         $auth->requireAnyRole($user, ['admin', 'superadmin']);
         json_response((new OnlineAssessmentService())->publishResultsAsAdmin((int)$matches[1]));
     }
+    if (preg_match('#^/api/teacher/online-assessments/([1-9][0-9]*)/republish-results$#D', $path, $matches) && $method === 'POST') {
+        Csrf::verifyRequest();
+        $user = require_user($auth);
+        $auth->requireAnyRole($user, ['teacher', 'admin', 'superadmin']);
+        $canManageAny = array_intersect(['admin', 'superadmin'], $user['roles'] ?? []) !== [];
+        json_response((new OnlineAssessmentService())->republishResults(
+            (int)$user['id'],
+            (int)$matches[1],
+            $canManageAny
+        ));
+    }
     if ($path === '/api/teacher/online-assessments' && $method === 'GET') {
         $user = require_user($auth);
         $auth->requireAnyRole($user, ['teacher', 'admin', 'superadmin']);
@@ -387,12 +402,12 @@ try {
         $canManageAny = array_intersect(['admin', 'superadmin'], $user['roles'] ?? []) !== [];
         json_response($service->results((int)$user['id'], (int)$matches[1], $canManageAny));
     }
-    if (preg_match('#^/api/teacher/online-assessments/([1-9][0-9]*)/scoresheet/email$#D', $path, $matches) && $method === 'POST') {
+    if (preg_match('#^/api/teacher/online-assessments/([1-9][0-9]*)/results/email$#D', $path, $matches) && $method === 'POST') {
         Csrf::verifyRequest();
         $user = require_user($auth);
         $auth->requireAnyRole($user, ['teacher', 'admin', 'superadmin']);
         $canManageAny = array_intersect(['admin', 'superadmin'], $user['roles'] ?? []) !== [];
-        json_response((new OnlineAssessmentService())->emailScoreSheet((int)$user['id'], (int)$matches[1], $canManageAny));
+        json_response((new OnlineAssessmentService())->emailResultsReport((int)$user['id'], (int)$matches[1], $canManageAny));
     }
     if (preg_match('#^/api/teacher/online-assessment-attempts/([1-9][0-9]*)/grade$#D', $path, $matches) && $method === 'POST') {
         Csrf::verifyRequest();
@@ -407,7 +422,8 @@ try {
         if (!is_array($questionReviews)) {
             throw new RuntimeException('Provide a valid written-question review.', 422);
         }
-        json_response((new OnlineAssessmentService())->grade((int)$user['id'], (int)$matches[1], $manualScore, $questionReviews));
+        $canManageAny = array_intersect(['admin', 'superadmin'], $user['roles'] ?? []) !== [];
+        json_response((new OnlineAssessmentService())->grade((int)$user['id'], (int)$matches[1], $manualScore, $questionReviews, $canManageAny));
     }
     if (preg_match('#^/api/teacher/online-assessment-attempts/([1-9][0-9]*)/integrity-review$#D', $path, $matches) && $method === 'POST') {
         Csrf::verifyRequest();

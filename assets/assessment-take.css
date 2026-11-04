@@ -35,6 +35,12 @@
 .assessment-roster-suggestions[hidden] { display: none; }
 .assessment-roster-option { display: block; width: 100%; min-height: 38px; padding: 8px 10px; border: 0; border-radius: 5px; color: var(--ink, #25352c); background: transparent; text-align: left; font: inherit; cursor: pointer; }
 .assessment-roster-option:hover, .assessment-roster-option:focus-visible { background: #f1f5f1; outline: 0; }
+.assessment-roster-option-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 6px 8px 6px 10px; border-radius: 5px; }
+.assessment-roster-option-row + .assessment-roster-option-row, .assessment-roster-option + .assessment-roster-option { margin-top: 2px; }
+.assessment-roster-option-identity { display: grid; gap: 3px; color: var(--ink, #25352c); font-size: 12px; }
+.assessment-roster-status-badge { width: fit-content; padding: 2px 6px; border-radius: 999px; color: #66551f; background: #fbf3d9; font-size: 9px; font-weight: 600; }
+.assessment-roster-view-results { flex: 0 0 auto; padding: 6px 9px; border: 1px solid #b8cbbd; border-radius: 5px; color: #245642; background: #f1f7f2; font: inherit; font-size: 10px; font-weight: 600; cursor: pointer; }
+.assessment-roster-view-results:hover, .assessment-roster-view-results:focus-visible { background: #e4efe6; outline: 2px solid #8eae98; outline-offset: 1px; }
 .assessment-credentials { display: grid; gap: 12px; padding: 15px; border: 1px solid var(--line, #e1e8e0); border-radius: 9px; background: #f7f9f7; }
 .assessment-credentials .auth-field { margin: 0; }
 .assessment-credentials .auth-submit { margin: 0; }
@@ -49,6 +55,7 @@
 .assessment-clock small { color: var(--muted, #77847c); font-size: 10px; }
 .assessment-clock strong { margin-top: 3px; font-size: 22px; font-variant-numeric: tabular-nums; }
 .assessment-clock #assessment-overall-clock { margin-top: 5px; color: var(--muted, #77847c); font-size: 10px; }
+.assessment-five-minute-warning { margin: 10px 0; padding: 8px 12px; border: 1px solid #e8d7a8; border-radius: 8px; color: #66551f; background: #fbf8ee; font-size: 12px; line-height: 1.45; }
 .assessment-fullscreen-button { width: auto; min-height: 28px; margin: 5px 0 0; padding: 3px 7px; border: 1px solid var(--line, #e1e8e0); border-radius: 5px; color: var(--ink, #25352c); background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
 .assessment-response-progress { margin: 16px 0 12px; }
 .assessment-response-progress-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; color: var(--muted, #77847c); font-size: 11px; }

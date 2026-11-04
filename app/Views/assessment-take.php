@@ -16,7 +16,7 @@ declare(strict_types=1);
   <script src="<?= e(app_url('assets/action-icons.js?v=1')) ?>" defer></script>
   <link rel="stylesheet" href="<?= e(app_url('assets/styles.css?v=150')) ?>">
   <link rel="stylesheet" href="<?= e(app_url('assets/auth.css?v=23')) ?>">
-  <link rel="stylesheet" href="<?= e(app_url('assets/assessment-take.css?v=11')) ?>">
+  <link rel="stylesheet" href="<?= e(app_url('assets/assessment-take.css?v=14')) ?>">
   <title>Online assessment · Akademi</title>
 </head>
 <body class="assessment-taking-page">
@@ -40,7 +40,9 @@ declare(strict_types=1);
           <li>Review the teacher’s security level and instructions before the timer starts. Advanced mode requires fullscreen where your browser supports it.</li>
           <li>Do not copy, photograph, share or look up assessment questions. Written answers may be reviewed by your teacher.</li>
           <li>Browser controls can deter copying and record some shortcut attempts, but they cannot block screenshots from every operating system, app, device or camera.</li>
-          <li>Your timer begins only after you review the instructions and start the assessment. Submit before time expires.</li>
+          <li>Your timer begins only after you review the instructions and start the assessment. Each question has a time limit and advances automatically when it expires; the final timed-out question is submitted automatically.</li>
+          <li>Your answers and current question are saved as you work. If your connection drops or you reopen this page, reconnect to continue from the last saved question and answers. Keep this tab open while offline so unsynced work can stay in this browser.</li>
+          <li>Submit before the overall timer reaches zero. Late answers cannot be submitted; only answers saved before the deadline are preserved.</li>
         </ul>
       </div>
       <div id="assessment-entry-preview" class="assessment-honor-notice" hidden><strong id="assessment-preview-heading"></strong><p id="assessment-preview-security"></p><p id="assessment-preview-time"></p></div>
@@ -69,6 +71,7 @@ declare(strict_types=1);
         <div><span class="auth-kicker">ONLINE ASSESSMENT</span><h1 id="assessment-title"></h1><p id="assessment-learner"></p></div>
         <div class="assessment-clock" aria-live="polite"><small>Question time remaining</small><strong id="assessment-clock">--:--</strong><small id="assessment-overall-clock"></small><button type="button" id="assessment-fullscreen" class="assessment-fullscreen-button">Enter fullscreen</button></div>
       </div>
+      <p id="assessment-five-minute-warning" class="assessment-five-minute-warning" role="status" aria-live="polite" hidden>5 minutes or less remain. Your answers continue to save; submit before the overall timer expires.</p>
       <div class="assessment-honor-notice compact">
         <strong id="assessment-security-heading">Assessment security instructions</strong>
         <p id="assessment-security-instructions"></p>
@@ -118,6 +121,6 @@ declare(strict_types=1);
     </section>
   </main>
   <script src="<?= e(app_url('assets/assessment-rendering.js?v=3')) ?>" defer></script>
-  <script src="<?= e(app_url('assets/assessment-take.js?v=18')) ?>" defer></script>
+  <script src="<?= e(app_url('assets/assessment-take.js?v=22')) ?>" defer></script>
 </body>
 </html>

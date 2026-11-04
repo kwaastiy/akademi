@@ -57,7 +57,7 @@ final class Mailer
         }
     }
 
-    public static function sendScoreSheet(string $email, string $assessmentTitle, string $className, string $csv, string $fileName): void
+    public static function sendAssessmentResultsReport(string $email, string $assessmentTitle, string $className, array $attachments): void
     {
         $mail = self::configuredMailer();
         try {
@@ -69,25 +69,39 @@ final class Mailer
             $safeClass = htmlspecialchars($className, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             $safeTitle = htmlspecialchars($assessmentTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             $mail->Body = self::emailLayout(
-                'Assessment score sheet',
-                '<p style="margin:0 0 14px;color:#435249;font-size:15px;line-height:1.6">The latest score sheet for <strong>' . $safeTitle . '</strong> is attached.</p>'
-                . '<p style="margin:0;color:#536258;font-size:13px;line-height:1.7">Class: <strong>' . $safeClass . '</strong>. Review pending written responses in your Akademi assessment results.</p>'
+                'Assessment results report',
+                '<p style="margin:0 0 14px;color:#435249;font-size:15px;line-height:1.6">The detailed assessment results and analysis for <strong>' . $safeTitle . '</strong> are attached in PDF and Word formats.</p>'
+                . '<p style="margin:0;color:#536258;font-size:13px;line-height:1.7">Class: <strong>' . $safeClass . '</strong>. The report includes learner results, participation and marking status, score analysis, class comparison, and question-level performance.</p>'
             );
-            $mail->AltBody = "The latest score sheet for {$assessmentTitle} is attached. Class: {$className}. Review pending written responses in your Akademi assessment results.\n";
-            $mail->addStringAttachment($csv, $fileName, PHPMailer::ENCODING_BASE64, 'text/csv');
+            $mail->AltBody = "The detailed assessment results and analysis for {$assessmentTitle} are attached in PDF and Word formats. Class: {$className}. The report includes learner results, participation and marking status, score analysis, class comparison, and question-level performance.\n";
+            foreach ($attachments as $attachment) {
+                if (!is_array($attachment)
+                    || !is_string($attachment['name'] ?? null)
+                    || !is_string($attachment['mime'] ?? null)
+                    || !is_string($attachment['content'] ?? null)) {
+                    throw new RuntimeException('An assessment results report attachment could not be prepared.', 500);
+                }
+                $mail->addStringAttachment(
+                    $attachment['content'],
+                    $attachment['name'],
+                    PHPMailer::ENCODING_BASE64,
+                    $attachment['mime']
+                );
+            }
             $mail->send();
-            write_log('info', 'Assessment score sheet email accepted by SMTP', [
+            write_log('info', 'Assessment results report email accepted by SMTP', [
                 'recipient_sha256' => hash('sha256', strtolower(trim($email))),
                 'mail_message_id' => $mail->getLastMessageID(),
+                'attachment_count' => count($attachments),
                 'delivery_status' => 'accepted_by_smtp',
             ]);
         } catch (MailException $exception) {
-            write_log('error', 'Assessment score sheet email failed', [
+            write_log('error', 'Assessment results report email failed', [
                 'exception' => $exception::class,
                 'recipient_sha256' => hash('sha256', strtolower(trim($email))),
                 'detail' => self::safeMailError($mail, $exception),
             ]);
-            throw new RuntimeException('The score sheet could not be emailed. Check SMTP settings and try again.', 503);
+            throw new RuntimeException('The PDF and Word results report could not be emailed. Check SMTP settings and try again.', 503);
         }
     }
 

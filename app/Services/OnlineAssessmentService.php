@@ -262,7 +262,7 @@ final class OnlineAssessmentService
         $this->processExpiredResults();
         $token = $this->cleanShareToken($token);
         $statement = Connection::get()->prepare(
-            'SELECT a.title, a.assessment_type, a.duration_minutes, a.security_level, a.instructions,
+            'SELECT a.id, a.title, a.assessment_type, a.duration_minutes, a.security_level, a.instructions,
                     a.access_mode,
                     a.status, a.expires_at, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), a.expires_at) AS availability_remaining_seconds,
                     a.subject_name, a.questions_json
@@ -292,7 +292,7 @@ final class OnlineAssessmentService
             'status' => (string)$class['status'],
         ], $classQuery->fetchAll());
         return [
-            'title' => (string)$row['title'], 'class_name' => implode(', ', array_column($classes, 'name')),
+            'id' => (int)$row['id'], 'title' => (string)$row['title'], 'class_name' => implode(', ', array_column($classes, 'name')),
             'classes' => $classes, 'access_mode' => (string)$row['access_mode'],
             'subject' => (string)$row['subject_name'], 'assessment_type' => (string)$row['assessment_type'],
             'duration_minutes' => (int)$row['duration_minutes'], 'security_level' => (string)$row['security_level'],
@@ -309,18 +309,44 @@ final class OnlineAssessmentService
         $query = trim($query);
         if (mb_strlen($query) < 2) return ['learners' => []];
         $statement = Connection::get()->prepare(
-            'SELECT r.id, r.learner_name FROM assessment_roster r
+            'SELECT r.id, r.learner_name, ar.access_used_at,
+                    (SELECT t.id FROM assessment_attempts t
+                     WHERE t.assessment_id = a.id AND t.roster_id = r.id
+                     ORDER BY t.id DESC LIMIT 1) AS attempt_id,
+                    (SELECT t.status FROM assessment_attempts t
+                     WHERE t.assessment_id = a.id AND t.roster_id = r.id
+                     ORDER BY t.id DESC LIMIT 1) AS attempt_status
+             FROM assessment_roster r
              JOIN assessment_classes c ON c.id = r.class_id
              JOIN online_assessment_classes ac ON ac.class_id = c.id
              JOIN online_assessments a ON a.id = ac.assessment_id
              JOIN online_assessment_roster ar ON ar.assessment_id = a.id AND ar.roster_id = r.id
              WHERE a.share_token = :token AND a.status = :status AND a.expires_at > UTC_TIMESTAMP()
-               AND ar.access_used_at IS NULL AND ac.status = :class_status AND c.id = :class_id
+               AND ac.status = :class_status AND c.id = :class_id
                AND r.learner_name LIKE :query
              ORDER BY r.learner_name, r.id LIMIT 10'
         );
         $statement->execute(['token' => $token, 'status' => 'published', 'class_status' => 'active', 'class_id' => $classId, 'query' => '%' . $query . '%']);
-        return ['learners' => array_map(static fn(array $row): array => ['id' => (int)$row['id'], 'name' => (string)$row['learner_name'], 'learner_name' => (string)$row['learner_name']], $statement->fetchAll())];
+        $learner = $_SESSION['online_assessment_learner'] ?? null;
+        $history = $_SESSION['online_assessment_attempt_history'] ?? [];
+        return ['learners' => array_map(static function (array $row) use ($learner, $history): array {
+            $attemptStatus = (string)($row['attempt_status'] ?? '');
+            $attemptId = (string)($row['attempt_id'] ?? '');
+            $attemptToken = is_array($history) ? ($history[$attemptId] ?? null) : null;
+            $canViewResults = is_array($learner)
+                && (int)($learner['roster_id'] ?? 0) === (int)$row['id']
+                && in_array($attemptStatus, ['submitted', 'expired'], true)
+                && ctype_digit($attemptId)
+                && is_string($attemptToken)
+                && preg_match('/^[a-f0-9]{64}$/i', $attemptToken) === 1;
+            return [
+                'id' => (int)$row['id'],
+                'name' => (string)$row['learner_name'],
+                'learner_name' => (string)$row['learner_name'],
+                'already_taken' => $row['access_used_at'] !== null || $attemptStatus !== '',
+                'can_view_results' => $canViewResults,
+            ];
+        }, $statement->fetchAll())];
     }
 
     public function enrollAndStart(string $token, int $classId, int $rosterId, string $accessCode): array
@@ -748,11 +774,13 @@ final class OnlineAssessmentService
             if ($row['result_published_at'] === null) {
                 $results[] = [
                     'attempt_id' => (int)$row['attempt_id'],
+                    'assessment_id' => (int)$row['assessment_id'],
                     'title' => (string)$row['title'],
                     'subject' => (string)$row['subject'],
                     'submitted_at' => $row['submitted_at'],
                     'result_published' => false,
                     'result_status' => 'pending',
+                    'review_pending' => (bool)$row['needs_manual_review'] && $row['manual_score'] === null,
                 ];
                 continue;
             }
@@ -813,7 +841,7 @@ final class OnlineAssessmentService
         $manualPending = (bool)$row['needs_manual_review'] && $row['manual_score'] === null;
         $autoScore = (int)$row['auto_score'];
         $integrityMarksDeducted = (int)($row['integrity_marks_deducted'] ?? 0);
-        $finalScore = $manualPending || $row['attempt_status'] !== 'submitted'
+        $finalScore = $manualPending || !in_array($row['attempt_status'], ['submitted', 'expired'], true)
             ? null
             : max(0, $autoScore + (int)($row['manual_score'] ?? 0) - $integrityMarksDeducted);
         foreach ($typeAnalysis as &$analysis) {
@@ -1337,14 +1365,23 @@ final class OnlineAssessmentService
         }
     }
 
-    public function current(): array
+    public function current(?string $assessmentToken = null): array
     {
         $attempt = $_SESSION['online_assessment_attempt'] ?? null;
         if (!is_array($attempt) || !isset($attempt['id'], $attempt['token'])) {
+            $lastSubmission = $_SESSION['online_assessment_last_submission'] ?? null;
+            if (is_array($lastSubmission)
+                && is_string($assessmentToken)
+                && $assessmentToken !== ''
+                && is_string($lastSubmission['share_token'] ?? null)
+                && hash_equals($lastSubmission['share_token'], $this->cleanShareToken($assessmentToken))) {
+                return ['submitted' => true, 'attempt_id' => (int)$lastSubmission['attempt_id']] + $lastSubmission['result'];
+            }
             throw new RuntimeException('Enter the learner access code provided by your teacher to begin.', 401);
         }
         $statement = Connection::get()->prepare(
-            'SELECT t.id, t.status, t.expires_at, t.question_order_json, r.learner_name,
+            'SELECT t.id, t.status, t.expires_at, t.question_order_json, t.current_question_index,
+                    t.answers_json, t.timed_out_questions_json, r.learner_name,
                     a.title, a.assessment_type, a.question_format, a.duration_minutes, a.security_level,
                     a.total_marks, a.instructions, a.questions_json,
                     TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), t.expires_at) AS remaining_seconds
@@ -1373,14 +1410,16 @@ final class OnlineAssessmentService
             throw new RuntimeException('The assessment time has ended. Your teacher will be notified of the expired attempt.', 410);
         }
         $questions = json_decode((string)$row['questions_json'], true, 64, JSON_THROW_ON_ERROR);
+        $questionOrder = array_keys($questions);
         if (is_string($row['question_order_json']) && $row['question_order_json'] !== '') {
             $order = json_decode($row['question_order_json'], true, 32, JSON_THROW_ON_ERROR);
             if (is_array($order) && count($order) === count($questions)
                 && array_values(array_unique($order)) === array_values($order)
                 && array_reduce($order, static fn(bool $valid, mixed $index): bool => $valid && is_int($index) && array_key_exists($index, $questions), true)) {
-                $questions = array_map(static fn(int $index): array => $questions[$index], $order);
+                $questionOrder = $order;
             }
         }
+        $questions = array_map(static fn(int $index): array => $questions[$index], $questionOrder);
         $publicQuestions = array_map(static function (array $question): array {
             $public = [
                 'prompt' => $question['question_type'] === 'mcq'
@@ -1397,6 +1436,25 @@ final class OnlineAssessmentService
             }
             return $public;
         }, $questions);
+        $savedAnswers = $row['answers_json'] === null
+            ? []
+            : json_decode((string)$row['answers_json'], true, 32, JSON_THROW_ON_ERROR);
+        $answers = [];
+        foreach ($questionOrder as $presentedIndex => $originalIndex) {
+            $answers[(string)$presentedIndex] = is_string($savedAnswers[(string)$originalIndex] ?? null)
+                ? $savedAnswers[(string)$originalIndex]
+                : '';
+        }
+        $savedTimedOutQuestions = $row['timed_out_questions_json'] === null
+            ? []
+            : json_decode((string)$row['timed_out_questions_json'], true, 32, JSON_THROW_ON_ERROR);
+        $originalToPresented = array_flip($questionOrder);
+        $timedOutQuestions = [];
+        foreach ($savedTimedOutQuestions as $originalIndex) {
+            if (isset($originalToPresented[$originalIndex])) {
+                $timedOutQuestions[] = $originalToPresented[$originalIndex];
+            }
+        }
         return [
             'attempt_id' => (int)$attempt['id'],
             'learner_name' => (string)$row['learner_name'],
@@ -1411,10 +1469,13 @@ final class OnlineAssessmentService
             'instructions' => (string)$row['instructions'],
             'remaining_seconds' => max(0, (int)$row['remaining_seconds']),
             'questions' => $publicQuestions,
+            'answers' => $answers,
+            'timed_out_questions' => $timedOutQuestions,
+            'current_question_index' => min(max(0, (int)$row['current_question_index']), max(0, count($publicQuestions) - 1)),
         ];
     }
 
-    public function saveDraft(array $answers, array $timedOutQuestions = []): array
+    public function saveDraft(array $answers, array $timedOutQuestions = [], ?int $currentQuestionIndex = null): array
     {
         $attempt = $_SESSION['online_assessment_attempt'] ?? null;
         if (!is_array($attempt) || !isset($attempt['id'], $attempt['token'])) {
@@ -1426,6 +1487,7 @@ final class OnlineAssessmentService
         try {
             $statement = $pdo->prepare(
                 'SELECT t.status, t.expires_at, t.assessment_id, t.question_order_json,
+                        t.answers_json, t.timed_out_questions_json, t.current_question_index,
                         a.questions_json,
                         TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), t.expires_at) AS remaining_seconds
                  FROM assessment_attempts t JOIN online_assessments a ON a.id = t.assessment_id
@@ -1446,7 +1508,6 @@ final class OnlineAssessmentService
                 unset($_SESSION['online_assessment_attempt']);
                 throw new RuntimeException('The assessment time has ended. Your saved answers were preserved.', 410);
             }
-
             $questions = json_decode((string)$row['questions_json'], true, 64, JSON_THROW_ON_ERROR);
             $questionOrder = is_string($row['question_order_json']) && $row['question_order_json'] !== ''
                 ? json_decode($row['question_order_json'], true, 32, JSON_THROW_ON_ERROR)
@@ -1454,17 +1515,26 @@ final class OnlineAssessmentService
             if (!is_array($questionOrder) || count($questionOrder) !== count($questions)) {
                 throw new RuntimeException('The question order for this attempt is invalid. Contact your teacher.', 409);
             }
+            $currentQuestionIndex ??= (int)$row['current_question_index'];
+            if ($currentQuestionIndex >= count($questionOrder)) {
+                throw new RuntimeException('The current question position is invalid.', 422);
+            }
             if (count($answers) > count($questions)) {
                 throw new RuntimeException('The saved answers do not match this assessment.', 422);
             }
 
+            $previousAnswers = $row['answers_json'] === null
+                ? []
+                : json_decode((string)$row['answers_json'], true, 32, JSON_THROW_ON_ERROR);
             $cleanAnswers = [];
             foreach ($questionOrder as $presentedIndex => $originalIndex) {
                 if (!is_int($originalIndex) || !array_key_exists($originalIndex, $questions)) {
                     throw new RuntimeException('The question order for this attempt is invalid. Contact your teacher.', 409);
                 }
                 $question = $questions[$originalIndex];
-                $answer = $answers[(string)$presentedIndex] ?? '';
+                $answer = array_key_exists((string)$presentedIndex, $answers)
+                    ? $answers[(string)$presentedIndex]
+                    : ($previousAnswers[(string)$originalIndex] ?? '');
                 if (!is_string($answer) || mb_strlen($answer) > 5000) {
                     throw new RuntimeException('An answer is too long or invalid.', 422);
                 }
@@ -1478,6 +1548,14 @@ final class OnlineAssessmentService
             }
 
             $cleanTimedOutQuestions = [];
+            $previousTimedOutQuestions = $row['timed_out_questions_json'] === null
+                ? []
+                : json_decode((string)$row['timed_out_questions_json'], true, 32, JSON_THROW_ON_ERROR);
+            foreach ($previousTimedOutQuestions as $originalIndex) {
+                if (is_int($originalIndex) && array_key_exists($originalIndex, $questions)) {
+                    $cleanTimedOutQuestions[] = $originalIndex;
+                }
+            }
             foreach ($timedOutQuestions as $presentedIndex) {
                 if (!is_int($presentedIndex) || !array_key_exists($presentedIndex, $questionOrder)) {
                     throw new RuntimeException('The timed-out question list is invalid.', 422);
@@ -1488,12 +1566,14 @@ final class OnlineAssessmentService
 
             $update = $pdo->prepare(
                 "UPDATE assessment_attempts
-                 SET answers_json = :answers, timed_out_questions_json = :timed_out
+                 SET answers_json = :answers, timed_out_questions_json = :timed_out,
+                     current_question_index = :current_question_index
                  WHERE id = :id AND status = 'in_progress' AND expires_at > UTC_TIMESTAMP()"
             );
             $update->execute([
                 'answers' => json_encode($cleanAnswers, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
                 'timed_out' => json_encode($cleanTimedOutQuestions, JSON_THROW_ON_ERROR),
+                'current_question_index' => $currentQuestionIndex,
                 'id' => (int)$attempt['id'],
             ]);
             if ($update->rowCount() !== 1) {
@@ -1528,7 +1608,9 @@ final class OnlineAssessmentService
         }
         $pdo = Connection::get();
         $statement = $pdo->prepare(
-            'SELECT t.status, t.expires_at, t.assessment_id, t.question_order_json, a.total_marks, a.questions_json,
+            'SELECT t.id, t.status, t.expires_at, t.assessment_id, t.question_order_json,
+                    t.answers_json, t.timed_out_questions_json, a.total_marks, a.questions_json,
+                    a.share_token,
                     TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), t.expires_at) AS remaining_seconds
              FROM assessment_attempts t JOIN online_assessments a ON a.id = t.assessment_id
              WHERE t.id = :id AND t.attempt_token_hash = :token_hash LIMIT 1'
@@ -1557,6 +1639,12 @@ final class OnlineAssessmentService
         if (count($answers) > count($questions)) {
             throw new RuntimeException('The submitted answers do not match this assessment.', 422);
         }
+        $previousAnswers = $row['answers_json'] === null
+            ? []
+            : json_decode((string)$row['answers_json'], true, 32, JSON_THROW_ON_ERROR);
+        $previousTimedOutQuestions = $row['timed_out_questions_json'] === null
+            ? []
+            : json_decode((string)$row['timed_out_questions_json'], true, 32, JSON_THROW_ON_ERROR);
         $timedOutIndexes = [];
         foreach ($timedOutQuestions as $index) {
             if (!is_int($index) || $index < 0 || $index >= count($questions) || isset($timedOutIndexes[$index])) {
@@ -1564,16 +1652,27 @@ final class OnlineAssessmentService
             }
             $timedOutIndexes[$index] = true;
         }
+        foreach ($previousTimedOutQuestions as $originalIndex) {
+            if (is_int($originalIndex)) {
+                $presentedIndex = array_search($originalIndex, $questionOrder, true);
+                if ($presentedIndex !== false) {
+                    $timedOutIndexes[$presentedIndex] = true;
+                }
+            }
+        }
         $cleanAnswers = [];
         $cleanTimedOutQuestions = [];
         $autoScore = 0;
+        $objectiveMaximum = 0;
         $needsManualReview = false;
         foreach ($questionOrder as $presentedIndex => $originalIndex) {
             if (!is_int($originalIndex) || !array_key_exists($originalIndex, $questions)) {
                 throw new RuntimeException('The question order for this attempt is invalid. Contact your teacher.', 409);
             }
             $question = $questions[$originalIndex];
-            $answer = $answers[(string)$presentedIndex] ?? '';
+            $answer = array_key_exists((string)$presentedIndex, $answers)
+                ? $answers[(string)$presentedIndex]
+                : ($previousAnswers[(string)$originalIndex] ?? '');
             if (!is_string($answer) || mb_strlen($answer) > 5000) {
                 throw new RuntimeException('An answer is too long or invalid.', 422);
             }
@@ -1582,16 +1681,18 @@ final class OnlineAssessmentService
             }
             $cleanAnswers[(string)$originalIndex] = trim($answer);
             if ($question['question_type'] === 'mcq') {
+                $objectiveMaximum += (int)$question['marks'];
                 if ($answer !== '' && !in_array($answer, ['0', '1', '2', '3'], true)) {
                     throw new RuntimeException('A multiple-choice response is invalid.', 422);
                 }
-                if (!isset($timedOutIndexes[$presentedIndex]) && $answer !== '' && (int)$answer === (int)$question['correct_option']) {
+                if ($answer !== '' && (int)$answer === (int)$question['correct_option']) {
                     $autoScore += (int)$question['marks'];
                 }
             } else {
                 $needsManualReview = true;
             }
         }
+        $cleanTimedOutQuestions = array_values(array_unique($cleanTimedOutQuestions));
         $pdo->beginTransaction();
         try {
             $save = $pdo->prepare(
@@ -1616,16 +1717,24 @@ final class OnlineAssessmentService
             if ($pdo->inTransaction()) $pdo->rollBack();
             throw $exception;
         }
-        unset($_SESSION['online_assessment_attempt']);
-        return [
+        $result = [
             'submitted' => true,
+            'attempt_id' => (int)$row['id'],
             'auto_score' => $autoScore,
+            'objective_maximum' => $objectiveMaximum,
             'total_marks' => (int)$row['total_marks'],
             'needs_manual_review' => $needsManualReview,
             'message' => $needsManualReview
                 ? 'Your answers have been submitted. Your objective score is shown below; your teacher will mark written responses.'
                 : 'Your answers have been submitted. Your score is shown below.',
         ];
+        $_SESSION['online_assessment_last_submission'] = [
+            'attempt_id' => (int)$row['id'],
+            'share_token' => (string)$row['share_token'],
+            'result' => $result,
+        ];
+        unset($_SESSION['online_assessment_attempt']);
+        return $result;
     }
 
     public function recordEvent(string $eventType): void
@@ -1907,16 +2016,42 @@ final class OnlineAssessmentService
 
     public function publishResultsAsAdmin(int $assessmentId): array
     {
+        $this->results(0, $assessmentId, true);
+        Connection::get()->prepare(
+            "UPDATE online_assessments
+             SET status = IF(status = 'published', 'closed', status), paused_at = NULL
+             WHERE id = :id"
+        )->execute(['id' => $assessmentId]);
+        return $this->republishResults(0, $assessmentId, true);
+    }
+
+    public function republishResults(int $ownerId, int $assessmentId, bool $allowAnyOwner = false): array
+    {
+        $this->results($ownerId, $assessmentId, $allowAnyOwner);
         $pdo = Connection::get();
-        $update = $pdo->prepare('UPDATE online_assessments SET result_published_at = COALESCE(result_published_at, UTC_TIMESTAMP()), status = IF(status = \'published\', \'closed\', status), paused_at = NULL WHERE id = :id');
-        $update->execute(['id' => $assessmentId]);
-        if ($update->rowCount() < 1) {
-            $check = $pdo->prepare('SELECT id FROM online_assessments WHERE id = :id');
-            $check->execute(['id' => $assessmentId]);
-            if (!$check->fetchColumn()) throw new RuntimeException('The assessment could not be found.', 404);
+        $update = $pdo->prepare(
+            'UPDATE online_assessments
+             SET result_published_at = UTC_TIMESTAMP(), result_email_sent_at = NULL
+             WHERE id = :id ' . ($allowAnyOwner ? '' : 'AND owner_user_id = :owner')
+        );
+        $parameters = ['id' => $assessmentId];
+        if (!$allowAnyOwner) $parameters['owner'] = $ownerId;
+        $update->execute($parameters);
+        try {
+            $this->emailResultsReport($ownerId, $assessmentId, $allowAnyOwner);
+        } catch (\Throwable $error) {
+            write_log('error', 'Republished assessment result email failed', [
+                'assessment_id' => $assessmentId,
+                'detail' => $error->getMessage(),
+            ]);
+            throw new RuntimeException(
+                'Results are available to learners, but the updated PDF and Word reports could not be emailed to the creator. Retry republishing to try the email again.',
+                502
+            );
         }
-        $this->processExpiredResults();
-        return ['published' => true];
+        $pdo->prepare('UPDATE online_assessments SET result_email_sent_at = UTC_TIMESTAMP() WHERE id = :id')
+            ->execute(['id' => $assessmentId]);
+        return ['published' => true, 'email_sent' => true];
     }
 
     public function processExpiredResults(): int
@@ -1932,7 +2067,7 @@ final class OnlineAssessmentService
             $lock->execute(['lock_name' => $lockName]);
             if ((int)$lock->fetchColumn() !== 1) continue;
             try {
-                $this->emailScoreSheet((int)$item['owner_user_id'], $assessmentId);
+                $this->emailResultsReport((int)$item['owner_user_id'], $assessmentId);
                 $pdo->prepare('UPDATE online_assessments SET result_email_sent_at = UTC_TIMESTAMP() WHERE id = :id AND result_email_sent_at IS NULL')
                     ->execute(['id' => $assessmentId]);
                 $sent++;
@@ -2112,7 +2247,7 @@ final class OnlineAssessmentService
         return ['assessment' => $details, 'questions' => $questions, 'students' => $students];
     }
 
-    public function emailScoreSheet(int $ownerId, int $assessmentId, bool $allowAnyOwner = false): array
+    public function emailResultsReport(int $ownerId, int $assessmentId, bool $allowAnyOwner = false): array
     {
         $result = $this->results($ownerId, $assessmentId, $allowAnyOwner);
         $recipientQuery = Connection::get()->prepare('SELECT email FROM users WHERE id = :owner LIMIT 1');
@@ -2121,72 +2256,55 @@ final class OnlineAssessmentService
         if (!is_string($recipient) || filter_var($recipient, FILTER_VALIDATE_EMAIL) === false) {
             throw new RuntimeException('The creator account does not have a valid email address.', 422);
         }
-
         $assessment = $result['assessment'];
-        unset($assessment['owner_user_id']);
-        $stream = fopen('php://temp', 'w+b');
-        if ($stream === false) throw new RuntimeException('The score sheet could not be prepared.', 500);
-        fwrite($stream, "\xEF\xBB\xBF");
-        $safeCell = static function ($value): string {
-            $text = (string)$value;
-            return preg_match('/^[\s]*[=+\-@]/u', $text) === 1 ? "'" . $text : $text;
-        };
-        fputcsv($stream, ['Assessment', $safeCell($assessment['title'])], ',', '"', '');
-        fputcsv($stream, ['Class', $safeCell($assessment['class_name'])], ',', '"', '');
-        fputcsv($stream, ['Total marks', (int)$assessment['total_marks']], ',', '"', '');
-        fputcsv($stream, [], ',', '"', '');
-        fputcsv($stream, ['Learner', 'Status', 'Objective score', 'Written score', 'Integrity deduction', 'Integrity review reason', 'Final score', 'Maximum marks', 'Percentage', 'Submitted at', 'Manual review', 'Browser events'], ',', '"', '');
-        foreach ($result['students'] as $student) {
-            $manualPending = (bool)$student['needs_manual_review'] && $student['manual_score'] === null;
-            $score = $student['status'] === 'submitted' && !$manualPending
-                ? max(0, (int)$student['auto_score'] + (int)($student['manual_score'] ?? 0) - (int)($student['integrity_marks_deducted'] ?? 0))
-                : null;
-            $percentage = $score === null || (int)$assessment['total_marks'] < 1
-                ? ''
-                : number_format(($score / (int)$assessment['total_marks']) * 100, 1, '.', '');
-            $eventSummary = [];
-            foreach ($student['integrity_events'] as $event => $count) $eventSummary[] = $event . ': ' . (int)$count;
-            fputcsv($stream, [
-                $safeCell($student['learner_name']), str_replace('_', ' ', $student['status']),
-                $student['status'] === 'submitted' ? (int)$student['auto_score'] : '',
-                $student['manual_score'] ?? '', (int)($student['integrity_marks_deducted'] ?? 0),
-                $safeCell($student['integrity_review']['reason'] ?? ''), $score ?? '',
-                (int)$assessment['total_marks'], $percentage,
-                $student['submitted_at'] ?? '', $manualPending ? 'Pending' : 'No', $safeCell(implode('; ', $eventSummary)),
-            ], ',', '"', '');
-        }
-        rewind($stream);
-        $csv = stream_get_contents($stream);
-        fclose($stream);
-        if (!is_string($csv)) throw new RuntimeException('The score sheet could not be prepared.', 500);
-        $className = (string)$assessment['class_name'];
-        $title = (string)$assessment['title'];
-        $fileName = preg_replace('/[^A-Za-z0-9_-]+/', '-', $title . '-' . $className) ?: 'assessment-score-sheet';
-        Mailer::sendScoreSheet($recipient, $title, $className, $csv, trim($fileName, '-') . '-scores.csv');
+        $attachments = AssessmentResultsReportService::attachments($result);
+        Mailer::sendAssessmentResultsReport(
+            $recipient,
+            (string)$assessment['title'],
+            (string)$assessment['class_name'],
+            $attachments
+        );
         return ['sent' => true];
     }
 
-    public function grade(int $ownerId, int $attemptId, int $manualScore, array $questionReviews = []): array
+    public function grade(int $ownerId, int $attemptId, int $manualScore, array $questionReviews = [], bool $allowAnyOwner = false): array
     {
         $pdo = Connection::get();
         $statement = $pdo->prepare(
-            "SELECT t.id, t.auto_score, a.total_marks, a.questions_json
+            "SELECT t.id, t.auto_score, t.answers_json, a.total_marks, a.questions_json
              FROM assessment_attempts t JOIN online_assessments a ON a.id = t.assessment_id
-             WHERE t.id = :attempt AND a.owner_user_id = :owner AND t.status = 'submitted' LIMIT 1"
+             WHERE t.id = :attempt " . ($allowAnyOwner ? '' : 'AND a.owner_user_id = :owner ') . "AND t.status IN ('submitted', 'expired') LIMIT 1"
         );
-        $statement->execute(['attempt' => $attemptId, 'owner' => $ownerId]);
+        $statement->execute($allowAnyOwner ? ['attempt' => $attemptId] : ['attempt' => $attemptId, 'owner' => $ownerId]);
         $row = $statement->fetch();
         if (!$row) throw new RuntimeException('The submitted attempt was not found in your account.', 404);
         $questions = json_decode((string)$row['questions_json'], true, 64, JSON_THROW_ON_ERROR);
         $objectivePossible = 0;
-        foreach ($questions as $question) {
-            if ($question['question_type'] !== 'mcq') $objectivePossible += (int)$question['marks'];
+        $autoScore = 0;
+        $answers = $row['answers_json'] === null
+            ? []
+            : json_decode((string)$row['answers_json'], true, 32, JSON_THROW_ON_ERROR);
+        foreach ($questions as $questionIndex => $question) {
+            if ($question['question_type'] !== 'mcq') {
+                $objectivePossible += (int)$question['marks'];
+                continue;
+            }
+            $answer = $answers[(string)$questionIndex] ?? '';
+            if (is_string($answer) && $answer !== ''
+                && filter_var($answer, FILTER_VALIDATE_INT) !== false
+                && (int)$answer === (int)$question['correct_option']) {
+                $autoScore += (int)$question['marks'];
+            }
         }
+        $writtenQuestionCount = count(array_filter(
+            $questions,
+            static fn(array $question): bool => ($question['question_type'] ?? '') !== 'mcq'
+        ));
         if ($manualScore < 0 || $manualScore > $objectivePossible) {
             throw new RuntimeException("The written-response score must be between 0 and {$objectivePossible}.", 422);
         }
         $cleanReviews = [];
-        if ($questionReviews !== []) {
+        if ($writtenQuestionCount > 0) {
             $manualScore = 0;
             foreach ($questions as $index => $question) {
                 if ($question['question_type'] === 'mcq') continue;
@@ -2204,13 +2322,14 @@ final class OnlineAssessmentService
         if ($manualScore < 0 || $manualScore > $objectivePossible) {
             throw new RuntimeException("The written-response score must be between 0 and {$objectivePossible}.", 422);
         }
-        $pdo->prepare('UPDATE assessment_attempts SET manual_score = :score, question_reviews_json = :reviews, needs_manual_review = 0 WHERE id = :id')
+        $pdo->prepare('UPDATE assessment_attempts SET auto_score = :auto_score, manual_score = :score, question_reviews_json = :reviews, needs_manual_review = 0 WHERE id = :id')
             ->execute([
+                'auto_score' => $autoScore,
                 'score' => $manualScore,
                 'reviews' => json_encode($cleanReviews, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
                 'id' => $attemptId,
             ]);
-        return ['attempt_id' => $attemptId, 'manual_score' => $manualScore, 'total_score' => (int)$row['auto_score'] + $manualScore];
+        return ['attempt_id' => $attemptId, 'auto_score' => $autoScore, 'manual_score' => $manualScore, 'total_score' => $autoScore + $manualScore];
     }
 
     public function reviewIntegrityMarks(

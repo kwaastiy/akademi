@@ -20,6 +20,7 @@
   let questionCards = [];
   const timedOutQuestions = new Set();
   let submitted = false;
+  let submissionInProgress = false;
   let submitProgressTimer = 0;
   let submitStartedAt = 0;
   let codePreview = null;
@@ -96,9 +97,11 @@
       const score = document.createElement("strong");
       score.textContent = result.result_published
         ? result.final_score === null
-          ? `${result.auto_score} objective marks · written responses pending`
+          ? `${result.auto_score} objective marks · written responses awaiting marking`
           : `${result.final_score}/${result.total_marks} · ${Number(result.percentage).toFixed(1)}%`
-        : "Results pending release";
+        : result.review_pending
+          ? "Written responses awaiting teacher marking"
+          : "Marking complete · results pending teacher release";
       summary.append(title, score);
       card.append(summary);
       if (result.result_published) {
@@ -128,7 +131,11 @@
           const questionTitle = document.createElement("strong");
           questionTitle.textContent = `Question ${question.question_number}`;
           const mark = document.createElement("span");
-          mark.textContent = question.score === null ? `Awaiting review · ${question.marks} marks` : `${question.score}/${question.marks} marks`;
+          mark.textContent = question.score !== null
+            ? `${question.score}/${question.marks} marks`
+            : result.review_pending
+              ? `Awaiting teacher marking · ${question.marks} marks`
+              : "Marked; individual question score unavailable";
           heading.append(questionTitle, mark);
           item.append(heading);
           appendResultText(item, "Question", question.prompt);
@@ -147,7 +154,9 @@
       } else {
         const pending = document.createElement("p");
         pending.className = "assessment-student-result-pending";
-        pending.textContent = "Your submission is saved. Your teacher has not released this result yet.";
+        pending.textContent = result.review_pending
+          ? "Your submission is saved. Written responses are awaiting teacher marking; marks and feedback will appear after your teacher completes and releases the result."
+          : "Marking is complete. Your marks and feedback will appear when your teacher releases the result.";
         card.append(pending);
       }
       studentResultsList.append(card);
@@ -158,20 +167,30 @@
     studentResultsButton.hidden = results.length === 0;
   }
 
-  async function loadStudentResults() {
+  async function loadStudentResults(assessmentId = null) {
     const result = await request("/api/student/assessment/results");
-    renderStudentResults(Array.isArray(result.results) ? result.results : []);
+    const results = Array.isArray(result.results) ? result.results : [];
+    if (assessmentId !== null) {
+      const matching = results.filter((item) => Number(item.assessment_id) === Number(assessmentId));
+      renderStudentResults(matching);
+      if (!matching.length) {
+        studentResultsStatus.textContent = "This browser does not have a saved attempt for this assessment. Open the link in the browser you used to take it, or ask your teacher for help.";
+      }
+    } else {
+      renderStudentResults(results);
+    }
     return result.results || [];
   }
 
-  function showStudentResults(fromCompletion = false) {
+  function showStudentResults(fromCompletion = false, assessmentId = null) {
     resultsOpenedFromCompletion = fromCompletion;
     entryVisibilityBeforeResults = new Map(Array.from(entry.children, (child) => [child, child.hidden]));
     entry.hidden = false;
     Array.from(entry.children).forEach((child) => { child.hidden = child !== studentResultsSection; });
     if (fromCompletion) complete.hidden = true;
     studentResultsSection.hidden = false;
-    void loadStudentResults().catch((error) => {
+    studentResultsStatus.textContent = "Loading your saved results…";
+    void loadStudentResults(assessmentId).catch((error) => {
       studentResultsStatus.textContent = error instanceof Error ? error.message : "Your results could not be loaded.";
     });
   }
@@ -197,7 +216,35 @@
     studentResultsStatus.textContent = error instanceof Error ? error.message : "Your results could not be loaded.";
   });
 
+  function showCompletion(result) {
+    submitted = true;
+    clearInterval(submitProgressTimer);
+    clearInterval(clockTimer);
+    active.hidden = true;
+    entry.hidden = true;
+    complete.hidden = false;
+    document.getElementById("assessment-complete-message").textContent = result.message;
+    document.getElementById("assessment-complete-score").textContent = result.needs_manual_review
+      ? result.objective_maximum > 0
+        ? `Objective score: ${result.auto_score} / ${result.objective_maximum}. Written responses await teacher marking. Use “View my assessment results” to check the latest marking and release status.`
+        : "Written responses await teacher marking. Use “View my assessment results” to check the latest marking and release status."
+      : `Score: ${result.auto_score} / ${result.total_marks}.`;
+    document.body.classList.remove("assessment-active");
+    if (Number.isInteger(result.attempt_id)) {
+      try {
+        localStorage.removeItem(`akademi-assessment-progress-${result.attempt_id}`);
+      } catch {
+        activeStatus.textContent = "Your answers were submitted, but this browser could not clear its offline backup.";
+      }
+    }
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+  }
+
   function showCurrent(data) {
+    if (data.submitted) {
+      showCompletion(data);
+      return;
+    }
     attempt = data;
     entry.hidden = true;
     active.hidden = false;
@@ -207,7 +254,7 @@
     document.getElementById("assessment-instructions").textContent = data.instructions || "Answer each question and submit before the timer expires.";
     document.getElementById("assessment-security-instructions").textContent = data.security_instructions;
     document.getElementById("assessment-security-heading").textContent = `${data.security_level === "advanced" ? "Advanced" : "Medium"} security instructions`;
-    document.getElementById("assessment-time-per-question").textContent = `Each question has an average time guide of ${data.average_seconds_per_question} seconds. The overall ${data.duration_minutes}-minute deadline still applies.`;
+    document.getElementById("assessment-time-per-question").textContent = `Each question has up to ${data.average_seconds_per_question} seconds. An unanswered question is saved and skipped automatically; the overall ${data.duration_minutes}-minute deadline also applies.`;
     document.getElementById("assessment-fullscreen").hidden = data.security_level !== "advanced" || Boolean(document.fullscreenElement);
     if (data.security_level === "advanced") activeStatus.textContent = "Advanced security is enabled. Use Enter fullscreen and tell your teacher if your browser cannot enter fullscreen.";
     remainingSeconds = data.remaining_seconds;
@@ -220,7 +267,7 @@
       const title = document.createElement("strong");
       title.textContent = `Question ${index + 1}`;
       const marks = document.createElement("span");
-      marks.textContent = `${question.marks} marks · ${data.average_seconds_per_question} sec time guide`;
+      marks.textContent = `${question.marks} marks · ${data.average_seconds_per_question} sec`;
       heading.append(title, marks);
       const prompt = document.createElement("div");
       prompt.classList.add("assessment-question-prompt");
@@ -261,9 +308,22 @@
       return card;
     }));
     questionCards = Array.from(questionRoot.children);
-    currentQuestionIndex = 0;
+    restoreProgress(data);
     timedOutQuestions.clear();
-    questionRemainingSeconds = data.average_seconds_per_question;
+    (Array.isArray(data.timed_out_questions) ? data.timed_out_questions : []).forEach((index) => {
+      if (Number.isInteger(index) && index >= 0 && index < questionCards.length) timedOutQuestions.add(index);
+    });
+    const storedProgress = readLocalProgress();
+    if (storedProgress) {
+      restoreAnswers(storedProgress.answers, false);
+      (Array.isArray(storedProgress.timed_out_questions) ? storedProgress.timed_out_questions : []).forEach((index) => {
+        if (Number.isInteger(index) && index >= 0 && index < questionCards.length) timedOutQuestions.add(index);
+      });
+      if (Number.isInteger(storedProgress.current_question_index)) {
+        currentQuestionIndex = Math.min(Math.max(0, storedProgress.current_question_index), questionCards.length - 1);
+      }
+    }
+    questionRemainingSeconds = Math.max(0, data.average_seconds_per_question);
     const responseProgress = document.getElementById("assessment-response-progress");
     responseProgress.max = questionCards.length || 1;
     document.getElementById("assessment-next-question").hidden = questionCards.length < 2;
@@ -272,29 +332,90 @@
     updateResponseProgress();
     renderClock();
     clearInterval(clockTimer);
+    if (remainingSeconds <= 0) {
+      deadlineReached = true;
+      activeStatus.textContent = "The assessment deadline has passed. Only answers saved before the deadline can be recovered.";
+      saveLocalProgress();
+      return;
+    }
     clockTimer = setInterval(() => {
       remainingSeconds = Math.max(0, remainingSeconds - 1);
+      renderClock();
+      if (remainingSeconds <= 0) {
+        clearInterval(clockTimer);
+        clearTimeout(answerDraftTimer);
+        deadlineReached = true;
+        const currentAnswer = collectAnswers()[String(currentQuestionIndex)] || "";
+        if (!String(currentAnswer).trim()) timedOutQuestions.add(currentQuestionIndex);
+        saveLocalProgress();
+        activeStatus.textContent = "Time has ended. Only answers saved before the deadline can be recovered.";
+        answerForm.querySelector('[type="submit"]').disabled = true;
+        document.getElementById("assessment-next-question").disabled = true;
+        answerForm.querySelectorAll("input, textarea").forEach((input) => { input.disabled = true; });
+        saveAnswerDraft();
+        return;
+      }
       questionRemainingSeconds = Math.max(0, questionRemainingSeconds - 1);
       renderClock();
       if (questionRemainingSeconds === 0) {
-        if (data.security_level === "advanced") {
-          activeStatus.textContent = "Question time expired. Moving to the next question.";
-          advanceQuestion(true);
-          if (currentQuestionIndex < questionCards.length - 1) scheduleAnswerDraftSave();
-        } else {
-          activeStatus.textContent = "The average time guide for this question has ended. Continue when ready; the overall exam deadline still applies.";
-        }
-      }
-      if (remainingSeconds <= 0) {
-        clearInterval(clockTimer);
-        deadlineReached = true;
-        clearTimeout(answerDraftTimer);
-        saveAnswerDraft();
-        activeStatus.textContent = "Time has ended. Answers saved before the deadline are preserved. Contact your teacher if anything is missing.";
-        answerForm.querySelector('[type="submit"]').disabled = true;
-        document.getElementById("assessment-next-question").disabled = true;
+        activeStatus.textContent = "Question time expired. Saving your response and moving on.";
+        advanceQuestion(true);
       }
     }, 1000);
+  }
+
+  function restoreAnswers(answers, overwrite = true) {
+    if (!answers || typeof answers !== "object" || Array.isArray(answers)) return;
+    attempt.questions.forEach((question, index) => {
+      const answer = answers[String(index)];
+      if (typeof answer !== "string") return;
+      if (question.question_type === "mcq") {
+        const option = questionCards[index]?.querySelector(`input[name="answer-${index}"][value="${CSS.escape(answer)}"]`);
+        if (option) option.checked = true;
+      } else {
+        const textarea = answerForm.elements.namedItem(`answer-${index}`);
+        if (textarea && (overwrite || answer !== "" || textarea.value === "")) textarea.value = answer;
+      }
+    });
+  }
+
+  function restoreProgress(data) {
+    restoreAnswers(data.answers);
+    currentQuestionIndex = Number.isInteger(data.current_question_index)
+      ? Math.min(Math.max(0, data.current_question_index), questionCards.length - 1)
+      : 0;
+    questionRemainingSeconds = data.average_seconds_per_question;
+  }
+
+  function localProgressKey() {
+    return `akademi-assessment-progress-${attempt.attempt_id}`;
+  }
+
+  function readLocalProgress() {
+    try {
+      const value = localStorage.getItem(localProgressKey());
+      if (!value) return null;
+      const progress = JSON.parse(value);
+      return progress && progress.attempt_id === attempt.attempt_id ? progress : null;
+    } catch {
+      activeStatus.textContent = "This browser could not read its offline answer backup. Restored answers saved to the assessment server.";
+      return null;
+    }
+  }
+
+  function saveLocalProgress() {
+    if (!attempt || submitted) return;
+    try {
+      localStorage.setItem(localProgressKey(), JSON.stringify({
+        attempt_id: attempt.attempt_id,
+        answers: collectAnswers(),
+        timed_out_questions: Array.from(timedOutQuestions),
+        current_question_index: currentQuestionIndex,
+        updated_at: Date.now()
+      }));
+    } catch {
+      activeStatus.textContent = "This browser could not save an offline answer backup. Keep the assessment page open while your answers sync.";
+    }
   }
 
   function updateQuestionPage() {
@@ -320,11 +441,15 @@
   }
 
   function advanceQuestion(didTimeOut = false) {
-    if (didTimeOut) timedOutQuestions.add(currentQuestionIndex);
+    if (didTimeOut) {
+      const currentAnswer = collectAnswers()[String(currentQuestionIndex)] || "";
+      if (!String(currentAnswer).trim()) timedOutQuestions.add(currentQuestionIndex);
+    }
     if (currentQuestionIndex >= questionCards.length - 1) {
-      if (didTimeOut && attempt.security_level === "advanced") {
+      if (didTimeOut) {
         clearInterval(clockTimer);
-        submitAnswers();
+        saveLocalProgress();
+        void submitAnswers();
       }
       return;
     }
@@ -333,6 +458,8 @@
     activeStatus.textContent = "";
     updateQuestionPage();
     renderClock();
+    saveLocalProgress();
+    scheduleAnswerDraftSave();
   }
 
   function setCredentialsVisible(visible) {
@@ -446,20 +573,44 @@
       if (requestId !== suggestionRequestId || query !== learnerInput.value.trim() || classId !== classInput.value) return;
       suggestions.replaceChildren();
       result.learners.forEach((learner) => {
-        const option = document.createElement("button");
-        option.type = "button";
-        option.role = "option";
-        option.className = "assessment-roster-option";
-        option.textContent = learner.name;
-        option.addEventListener("click", () => {
-          learnerInput.value = learner.name;
-          selectedLearnerName = learner.name;
-          selectedLearnerId = Number(learner.id);
-          suggestions.hidden = true;
-          setCredentialsVisible(true);
-          if (assessmentInfo.access_mode !== "none") identityForm.elements.namedItem("accessCode").focus();
-          else document.getElementById("assessment-identity-submit").focus();
-        });
+        const alreadyTaken = Boolean(learner.already_taken);
+        const option = document.createElement(alreadyTaken ? "div" : "button");
+        option.setAttribute("role", alreadyTaken ? "group" : "option");
+        option.className = alreadyTaken ? "assessment-roster-option-row" : "assessment-roster-option";
+        if (alreadyTaken) {
+          const identity = document.createElement("span");
+          identity.className = "assessment-roster-option-identity";
+          identity.append(document.createTextNode(learner.name));
+          const badge = document.createElement("small");
+          badge.className = "assessment-roster-status-badge";
+          badge.textContent = "Already taken";
+          identity.append(badge);
+          option.append(identity);
+          const viewResults = document.createElement("button");
+          viewResults.type = "button";
+          viewResults.className = "assessment-roster-view-results";
+          viewResults.textContent = "View results";
+          viewResults.addEventListener("click", () => {
+            if (learner.can_view_results) {
+              showStudentResults(false, Number(assessmentInfo.id));
+              return;
+            }
+            entryStatus.textContent = "For privacy, results are available only in the browser session used to take this assessment. Reopen the link in that browser or ask your teacher for help.";
+          });
+          option.append(viewResults);
+        } else {
+          option.type = "button";
+          option.textContent = learner.name;
+          option.addEventListener("click", () => {
+            learnerInput.value = learner.name;
+            selectedLearnerName = learner.name;
+            selectedLearnerId = Number(learner.id);
+            suggestions.hidden = true;
+            setCredentialsVisible(true);
+            if (assessmentInfo.access_mode !== "none") identityForm.elements.namedItem("accessCode").focus();
+            else document.getElementById("assessment-identity-submit").focus();
+          });
+        }
         suggestions.append(option);
       });
       suggestions.hidden = result.learners.length === 0;
@@ -508,7 +659,7 @@
         || error.status === 409;
       if (canRecoverActiveAttempt) {
         try {
-          const current = await request("/api/student/assessment/current");
+          const current = await request(`/api/student/assessment/current?assessment=${encodeURIComponent(assessmentToken)}`);
           showCurrent(current.attempt);
           return;
         } catch {
@@ -531,6 +682,7 @@
     const overallSeconds = remainingSeconds % 60;
     document.getElementById("assessment-overall-clock").textContent = `Overall: ${String(overallMinutes).padStart(2, "0")}:${String(overallSeconds).padStart(2, "0")}`;
     clock.closest(".assessment-clock").classList.toggle("is-low-time", questionRemainingSeconds < 60);
+    document.getElementById("assessment-five-minute-warning").hidden = remainingSeconds <= 0 || remainingSeconds > 300;
   }
 
   async function recordEvent(eventType) {
@@ -546,7 +698,7 @@
 
   async function tryRestore() {
     try {
-      const result = await request("/api/student/assessment/current");
+      const result = await request(`/api/student/assessment/current?assessment=${encodeURIComponent(assessmentToken)}`);
       showCurrent(result.attempt);
     } catch (error) {
       if (error instanceof Error && !error.message.startsWith("Enter the learner access code")) {
@@ -571,7 +723,7 @@
         const level = codePreview.security_level === "advanced" ? "Advanced" : "Medium";
         document.getElementById("assessment-preview-heading").textContent = `${level} security · ${codePreview.title}`;
         document.getElementById("assessment-preview-security").textContent = codePreview.security_instructions;
-        document.getElementById("assessment-preview-time").textContent = `Time guide: ${codePreview.average_seconds_per_question} seconds per question on average across ${codePreview.question_count} questions. The ${codePreview.duration_minutes}-minute timer starts when you begin.`;
+        document.getElementById("assessment-preview-time").textContent = `Each question has up to ${codePreview.average_seconds_per_question} seconds before moving on automatically. The ${codePreview.duration_minutes}-minute overall timer starts when you begin.`;
         document.getElementById("assessment-entry-preview").hidden = false;
         submit.textContent = "Start timed assessment";
         entryStatus.textContent = "Read the instructions above. Your timer has not started.";
@@ -619,15 +771,16 @@
   });
 
   document.getElementById("assessment-next-question").addEventListener("click", () => {
-    scheduleAnswerDraftSave();
     advanceQuestion(false);
   });
   answerForm.addEventListener("change", () => {
     updateResponseProgress();
+    saveLocalProgress();
     scheduleAnswerDraftSave();
   });
   answerForm.addEventListener("input", () => {
     updateResponseProgress();
+    saveLocalProgress();
     scheduleAnswerDraftSave();
   });
 
@@ -650,7 +803,8 @@
   function saveAnswerDraft() {
     const payload = {
       answers: collectAnswers(),
-      timed_out_questions: Array.from(timedOutQuestions).sort((first, second) => first - second)
+      timed_out_questions: Array.from(timedOutQuestions).sort((first, second) => first - second),
+      current_question_index: currentQuestionIndex
     };
     answerDraftQueue = answerDraftQueue
       .catch(() => {})
@@ -659,7 +813,9 @@
         if (!deadlineReached && !submitted) activeStatus.textContent = "Answers saved.";
       })
       .catch((error) => {
-        if (!deadlineReached && !submitted) {
+        if (deadlineReached && !submitted) {
+          activeStatus.textContent = "The overall deadline passed before the latest answers reached the server. Answers saved earlier remain preserved; this browser has kept an offline backup.";
+        } else if (!submitted) {
           activeStatus.textContent = error instanceof Error
             ? `Your latest answers could not be saved: ${error.message}`
             : "Your latest answers could not be saved. Check your connection.";
@@ -677,7 +833,8 @@
   }
 
   async function submitAnswers() {
-    if (submitted) return;
+    if (submitted || submissionInProgress) return;
+    submissionInProgress = true;
     clearTimeout(answerDraftTimer);
     await answerDraftQueue;
     const answers = collectAnswers();
@@ -711,29 +868,29 @@
     try {
       const result = await request("/api/student/assessment/submit", "POST", {
         answers,
-        timed_out_questions: Array.from(timedOutQuestions).sort((first, second) => first - second)
+        timed_out_questions: Array.from(timedOutQuestions).sort((first, second) => first - second),
+        current_question_index: currentQuestionIndex
       });
-      submitted = true;
-      clearInterval(submitProgressTimer);
-      clearInterval(clockTimer);
-      active.hidden = true;
-      complete.hidden = false;
-      document.getElementById("assessment-complete-message").textContent = result.message;
-      const objectiveMaximum = attempt.questions.reduce((total, question) => total + (question.question_type === "mcq" ? question.marks : 0), 0);
-      document.getElementById("assessment-complete-score").textContent = result.needs_manual_review
-        ? objectiveMaximum > 0
-          ? `Objective score: ${result.auto_score} / ${objectiveMaximum}. Written responses are awaiting teacher review.`
-          : "Written responses are awaiting teacher review."
-        : `Score: ${result.auto_score} / ${result.total_marks}.`;
-      document.body.classList.remove("assessment-active");
-      if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+      showCompletion({ ...result, attempt_id: attempt.attempt_id });
     } catch (error) {
+      submissionInProgress = false;
       clearInterval(submitProgressTimer);
+      try {
+        const current = await request(`/api/student/assessment/current?assessment=${encodeURIComponent(assessmentToken)}`);
+        if (current.attempt?.submitted) {
+          showCompletion(current.attempt);
+          return;
+        }
+      } catch {
+        // Keep the submission error visible when the server cannot confirm completion.
+      }
+      saveLocalProgress();
       activeStatus.textContent = error instanceof Error ? error.message : "Your answers could not be submitted.";
       submit.disabled = false;
-      document.getElementById("assessment-next-question").disabled = false;
-      answerForm.querySelectorAll("input, textarea").forEach((input) => { input.disabled = false; });
-      submit.textContent = "Submit answers";
+      document.getElementById("assessment-next-question").disabled = deadlineReached;
+      answerForm.querySelectorAll("input, textarea").forEach((input) => { input.disabled = deadlineReached; });
+      submit.textContent = deadlineReached ? "Retry submission" : "Submit answers";
+      if (deadlineReached) submit.hidden = false;
       submit.removeAttribute("aria-busy");
       submitProgress.hidden = true;
     }
@@ -756,7 +913,16 @@
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) recordEvent("tab_hidden");
+    if (document.hidden) {
+      saveLocalProgress();
+      if (attempt && !submitted && !deadlineReached) saveAnswerDraft();
+      recordEvent("tab_hidden");
+    }
+  });
+  window.addEventListener("online", () => {
+    if (!attempt || submitted) return;
+    if (deadlineReached) void submitAnswers();
+    else saveAnswerDraft();
   });
   window.addEventListener("blur", () => recordEvent("window_blur"));
   document.addEventListener("fullscreenchange", () => {

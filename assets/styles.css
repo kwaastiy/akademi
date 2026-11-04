@@ -190,13 +190,14 @@ h2 { margin-bottom: 0; font: 700 16px/1.35 "Segoe UI", Arial, sans-serif; letter
 .online-manual-grade span { flex-basis: 100%; }
 .online-manual-grade input { width: 76px; min-height: 31px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink); }
 .online-answer-review-button { justify-self: start; margin-top: 3px; color: var(--forest); }
-.answer-review-dialog { width: min(860px, calc(100vw - 32px)); max-width: none; max-height: min(88vh, 900px); padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); background: var(--paper); box-shadow: 0 26px 80px rgb(15 35 25 / 30%); }
+.answer-review-dialog { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(860px, calc(100vw - 32px)); max-width: none; max-height: min(88vh, 900px); padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); background: var(--paper); box-shadow: 0 26px 80px rgb(15 35 25 / 30%); }
+.answer-review-dialog:not([open]) { display: none; }
 .answer-review-dialog::backdrop { background: rgb(12 25 18 / 62%); backdrop-filter: blur(4px); }
 .answer-review-dialog-header { position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 24px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
 .answer-review-dialog-header .eyebrow { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .9px; }
 .answer-review-dialog-header h2 { margin: 5px 0 3px; color: var(--ink); font-size: 20px; }
 .answer-review-dialog-header p { margin: 0; color: var(--muted); font-size: 11px; }
-.answer-review-dialog-content { max-height: calc(88vh - 145px); overflow: auto; padding: 18px 24px; overscroll-behavior: contain; }
+.answer-review-dialog-content { min-height: 0; overflow: auto; padding: 18px 24px; overscroll-behavior: contain; }
 .answer-review-question-list { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
 .answer-review-question { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: color-mix(in srgb, var(--canvas) 45%, var(--paper)); }
 .answer-review-question-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; color: var(--ink); }
@@ -215,6 +216,12 @@ h2 { margin-bottom: 0; font: 700 16px/1.35 "Segoe UI", Arial, sans-serif; letter
 .answer-review-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-top: 1px solid var(--line); background: var(--paper); }
 .answer-review-export-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .answer-review-dialog-footer .small-button { min-width: 90px; }
+.answer-review-save-button { min-height: 42px; padding: 0 18px; border: 0; border-radius: 8px; background: var(--brand-primary); color: var(--brand-primary-contrast, #fff); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 10px rgb(15 35 25 / 18%); }
+.answer-review-save-button:hover { filter: brightness(.94); }
+.answer-review-save-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand-primary) 38%, transparent); outline-offset: 3px; }
+.answer-review-save-button:disabled { opacity: .65; cursor: wait; }
+.answer-review-marking-status { margin-top: 8px !important; color: var(--forest) !important; font-weight: 700; }
+.online-written-review-complete { color: #176347 !important; font-weight: 750; }
 .online-question-feedback { display: grid; gap: 7px; margin: 8px 0; padding: 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--canvas); }
 .online-question-feedback label { display: grid; gap: 4px; color: var(--ink); font-size: 10px; font-weight: 650; }
 .online-question-feedback input, .online-question-feedback textarea { width: 100%; min-height: 34px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink); font: inherit; }
@@ -505,7 +512,7 @@ h2 { margin-bottom: 0; font: 700 16px/1.35 "Segoe UI", Arial, sans-serif; letter
 @media (max-width: 620px) { .online-assessment-library-row { align-items: stretch; flex-direction: column; } .online-assessment-library-row .small-button { justify-content: center; } .assessment-availability-controls { align-items: stretch; width: 100%; flex-direction: column; } .assessment-availability-controls .field { width: 100%; } }
 @media (max-width: 620px) { .generated-assessment-header { padding: 16px; } .generated-assessment-online-actions { padding: 10px 12px; } .generated-assessment-online-actions strong { flex-basis: 100%; } .generated-assessment-tabs { padding: 8px 10px; } .generated-assessment-panel { padding: 12px; } .assessment-admin-details th { width: 125px; } .assessment-cover-meta { grid-template-columns: 1fr; } .assessment-cover-page { min-height: 580px; padding: 26px 20px; } .assessment-cover-accent { margin: 26px 0 30px; } }
 @media (max-width: 620px) { .assessment-library-filters, .assessment-class-management .assessment-library-filters { grid-template-columns: 1fr; } .assessment-workspace-tabs [role="tab"] { flex: 1; padding-inline: 8px; } .assessment-managed-class { align-items: stretch; flex-direction: column; } .assessment-managed-class > div:last-child { justify-content: flex-start; } .assessment-class-dialog { width: calc(100vw - 14px); max-height: 96vh; } .assessment-class-dialog #assessment-class-form { padding: 13px; } .assessment-performance-content { padding: 13px; } .assessment-performance-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .assessment-class-form-actions { width: 100%; } .assessment-class-form-actions .button { flex: 1; } .assessment-subject-picker { padding: 9px; } .assessment-class-subject-list { max-height: 220px; grid-template-columns: 1fr; } }
-@media (max-width: 620px) { .answer-review-dialog { width: calc(100vw - 20px); max-height: 92vh; border-radius: 12px; } .answer-review-dialog-header { padding: 16px 16px 12px; } .answer-review-dialog-content { max-height: calc(92vh - 135px); padding: 12px; } .answer-review-question { padding: 12px; } .answer-review-dialog-footer { align-items: stretch; flex-direction: column-reverse; padding: 10px 16px; } .answer-review-export-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 620px) { .answer-review-dialog { width: calc(100vw - 20px); max-height: 92vh; border-radius: 12px; } .answer-review-dialog-header { padding: 16px 16px 12px; } .answer-review-dialog-content { padding: 12px; } .answer-review-question { padding: 12px; } .answer-review-dialog-footer { align-items: stretch; flex-direction: column; padding: 10px 16px; } .answer-review-save-button { width: 100%; } .answer-review-export-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } }
 .assessment-question-list { display: grid; gap: 12px; padding-left: 24px; }
 .assessment-question { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; break-inside: avoid; }
 .assessment-question > p { margin: 7px 0; line-height: 1.6; }

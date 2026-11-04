@@ -4194,7 +4194,7 @@
     ];
     const exportQuestions = questions.map((question, index) => {
       const answer = (student.answers || {})[String(index)] || "";
-      const timedOut = (student.timed_out_questions || []).includes(index) || student.status === "expired";
+      const timedOut = (student.timed_out_questions || []).includes(index) && answer === "";
       const isMcq = Array.isArray(question.options);
       const correctOption = isMcq ? Number(question.correct_option) : -1;
       const selectedAnswer = isMcq && answer !== ""
@@ -4203,9 +4203,9 @@
       const correctAnswer = isMcq
         ? `${String.fromCharCode(65 + correctOption)}. ${question.options[correctOption] || "Unavailable"}`
         : "";
-      const isCorrect = isMcq && answer !== "" && Number(answer) === correctOption && !timedOut;
+      const isCorrect = isMcq && answer !== "" && Number(answer) === correctOption;
       const isIncorrect = isMcq && answer !== "" && !isCorrect && !timedOut;
-      const state = timedOut ? "Timed out" : isMcq ? answer === "" ? "No response" : isCorrect ? "Correct" : "Incorrect" : answer ? student.manual_score !== null ? "Written response · reviewed" : "Written response · awaiting marking" : "No response";
+      const state = timedOut ? "Timed out before answering" : isMcq ? answer === "" ? "No response" : isCorrect ? "Correct" : "Incorrect" : answer ? student.manual_score !== null ? "Written response · reviewed" : "Written response · awaiting marking" : "No response";
       const earned = isMcq && isCorrect ? Number(question.marks) : 0;
       const learnerAnswer = timedOut && answer === "" ? "Timed out before answering" : selectedAnswer;
       const savedReview = student.question_reviews?.[String(index)] || {};
@@ -4253,7 +4253,9 @@
   }
 
   function finalizedAssessmentScore(student) {
-    if (student.status !== "submitted" || (student.needs_manual_review && (student.manual_score === null || student.manual_score === undefined))) return null;
+    const hasWrittenQuestions = (activeOnlineResults?.questions || []).some((question) => question.question_type !== "mcq");
+    if (!["submitted", "expired"].includes(student.status)
+        || ((student.needs_manual_review || hasWrittenQuestions) && (student.manual_score === null || student.manual_score === undefined))) return null;
     return Math.max(0, Number(student.auto_score || 0) + Number(student.manual_score || 0) - Number(student.integrity_marks_deducted || 0));
   }
 
@@ -4296,6 +4298,7 @@
       : "0";
     activeOnlineResults = result;
     const questions = result.questions || [];
+    const hasWrittenQuestions = questions.some((question) => question.question_type !== "mcq");
     const assessment = result.assessment;
     const roles = window.akademiUserRoles || [];
     const isAdmin = roles.includes("admin") || roles.includes("superadmin");
@@ -4347,6 +4350,12 @@
         ? `<button type="button" class="small-button" data-reset-learner-access="${assessment.id}" data-roster-id="${student.roster_id}">Reset access for retake</button>`
         : "";
       const hasIntegrityEvents = Object.values(student.integrity_events || {}).some((count) => Number(count) > 0);
+      const canReviewWrittenResponses = hasWrittenQuestions
+        && ["submitted", "expired"].includes(student.status)
+        && student.attempt_id !== null;
+      const manualPending = canReviewWrittenResponses
+        && student.manual_score == null
+        && student.needs_manual_review;
       const canReviewIntegrityMarks = (isOwner || isAdmin) && student.attempt_id
         && ["submitted", "expired"].includes(student.status) && hasIntegrityEvents;
       const integrityReview = canReviewIntegrityMarks
@@ -4357,44 +4366,40 @@
           return `<details class="integrity-mark-review"><summary>${previousReview ? "Update integrity marks review" : "Review integrity events"}</summary><form data-integrity-review-attempt="${student.attempt_id}"><p>Browser activity is a signal, not proof of misconduct. Review the attempt and record a reason for your decision.</p><label><span>Decision</span><select name="decision" required><option value="maintain" ${decision === "maintain" ? "selected" : ""}>Maintain marks</option><option value="deduct" ${decision === "deduct" ? "selected" : ""}>Deduct marks</option></select></label><label><span>Marks to deduct</span><input type="number" name="marks_deducted" min="0" max="${Number(assessment.total_marks)}" step="1" value="${deducted}" required ${decision === "maintain" ? "disabled" : ""}></label><label><span>Reason for decision</span><textarea name="reason" minlength="10" maxlength="1000" required placeholder="Explain what was reviewed and why marks are maintained or deducted.">${escapeHtml(previousReview?.reason || "")}</textarea></label><button type="submit" class="small-button">Save integrity review</button></form></details>`;
         })()
         : "";
-      const answerReview = student.answers || student.status === "expired" ? `<button type="button" class="small-button online-answer-review-button" data-review-answers="${escapeHtml(student.attempt_id)}" aria-haspopup="dialog" aria-controls="answer-review-dialog-${escapeHtml(student.attempt_id)}">Review answers</button><dialog id="answer-review-dialog-${escapeHtml(student.attempt_id)}" class="answer-review-dialog" aria-labelledby="answer-review-title-${escapeHtml(student.attempt_id)}"><header class="answer-review-dialog-header"><div><span class="eyebrow">LEARNER RESPONSE REVIEW</span><h2 id="answer-review-title-${escapeHtml(student.attempt_id)}">${escapeHtml(student.learner_name)}</h2><p>${escapeHtml(assessment.title)} · ${escapeHtml(student.status.replaceAll("_", " "))}</p></div><button type="button" class="lesson-wizard-close" data-close-answer-review aria-label="Close answer review">&times;</button></header><div class="answer-review-dialog-content"><ol class="answer-review-question-list">${questions.map((question, index) => {
+      const answerReview = canReviewWrittenResponses || student.answers || student.status === "expired" ? `<button type="button" class="small-button online-answer-review-button" data-review-answers="${escapeHtml(student.attempt_id)}" aria-haspopup="dialog" aria-controls="answer-review-dialog-${escapeHtml(student.attempt_id)}">${canReviewWrittenResponses ? manualPending ? "Mark written responses" : "Review marked responses" : "Review answers"}</button><dialog id="answer-review-dialog-${escapeHtml(student.attempt_id)}" class="answer-review-dialog" aria-labelledby="answer-review-title-${escapeHtml(student.attempt_id)}"><header class="answer-review-dialog-header"><div><span class="eyebrow">LEARNER RESPONSE REVIEW</span><h2 id="answer-review-title-${escapeHtml(student.attempt_id)}">${escapeHtml(student.learner_name)}</h2><p>${escapeHtml(assessment.title)} · Attempt ${escapeHtml(student.status.replaceAll("_", " "))}</p><p class="answer-review-marking-status">${manualPending ? "Written marking is still required. Save marks below to complete the review." : canReviewWrittenResponses ? `Written marking complete · ${Number(student.manual_score)} mark(s) awarded.` : "Review learner responses and saved answers."}</p></div><button type="button" class="lesson-wizard-close" data-close-answer-review aria-label="Close answer review">&times;</button></header><div class="answer-review-dialog-content"><ol class="answer-review-question-list">${questions.map((question, index) => {
         const answer = (student.answers || {})[String(index)] || "";
-        const timedOut = (student.timed_out_questions || []).includes(index) || student.status === "expired";
+        const timedOut = (student.timed_out_questions || []).includes(index) && answer === "";
         const isMcq = Array.isArray(question.options);
         const correctOption = isMcq ? Number(question.correct_option) : -1;
         const correctAnswer = isMcq ? `${String.fromCharCode(65 + correctOption)}. ${question.options[correctOption] || "Unavailable"}` : "";
         const selectedAnswer = isMcq && answer !== ""
           ? `${String.fromCharCode(65 + Number(answer))}. ${question.options[Number(answer)] || "Invalid option"}`
           : answer || "No response";
-        const isCorrect = isMcq && answer !== "" && Number(answer) === correctOption && !timedOut;
-        const state = timedOut ? "Timed out" : isMcq ? answer === "" ? "No response" : isCorrect ? "Correct" : "Incorrect" : answer ? student.manual_score !== null ? "Written response · reviewed" : "Written response · awaiting marking" : "No response";
+        const isCorrect = isMcq && answer !== "" && Number(answer) === correctOption;
+        const state = timedOut ? "Timed out before answering" : isMcq ? answer === "" ? "No response" : isCorrect ? "Correct" : "Incorrect" : answer ? manualPending ? "Written response · awaiting marking" : "Written response · marked" : "No response";
         const earned = isMcq && isCorrect ? Number(question.marks) : 0;
         const learnerReview = timedOut && answer === "" ? "Timed out before answering" : selectedAnswer;
         const savedReview = student.question_reviews?.[String(index)] || {};
-        const teacherReview = !isMcq
-          ? `<div class="online-question-feedback"><label><span>Mark · ${question.marks} possible</span><input type="number" min="0" max="${Number(question.marks)}" step="1" required value="${savedReview.score ?? ""}" data-question-review-score="${index}" aria-label="Mark for question ${index + 1}"></label><label><span>Reason / feedback for learner</span><textarea rows="2" maxlength="1000" required data-question-review-comment="${index}" placeholder="Name the correct method or evidence, then explain one useful next step.">${escapeHtml(savedReview.comment || "")}</textarea></label></div>`
+        const teacherReview = !isMcq && canReviewWrittenResponses
+          ? `<div class="online-question-feedback"><label><span>Mark · ${question.marks} possible</span><input type="number" min="0" max="${Number(question.marks)}" step="1" required value="${savedReview.score ?? ""}" data-question-review-score="${index}" aria-label="Mark for question ${index + 1}"></label><label><span>Reason / feedback for learner (optional)</span><textarea rows="2" maxlength="1000" data-question-review-comment="${index}" placeholder="Name the correct method or evidence, then explain one useful next step.">${escapeHtml(savedReview.comment || "")}</textarea></label></div>`
           : "";
         const previousFeedback = savedReview.comment
           ? `<p class="online-saved-feedback"><strong>Teacher feedback:</strong> ${escapeHtml(savedReview.comment)}${savedReview.score !== undefined ? ` · ${savedReview.score}/${question.marks} marks` : ""}</p>`
           : "";
-        return `<li class="answer-review-question"><div class="answer-review-question-heading"><strong>Question ${index + 1}</strong><span>${escapeHtml(question.marks)} marks</span></div><div class="answer-review-prompt">${assessmentPrompt(question)}${assessmentVisual(question.visual)}</div><small class="answer-review-state ${timedOut ? "is-timeout" : isCorrect ? "is-correct" : isMcq && answer !== "" ? "is-wrong" : ""}">${escapeHtml(state)}${isMcq ? ` · ${earned}/${question.marks} marks` : ""}</small><p><strong>Learner:</strong> ${escapeHtml(learnerReview)}</p>${isMcq ? `<p><strong>Correct answer:</strong> ${escapeHtml(correctAnswer)}</p>` : `<p><strong>Expected response:</strong> ${assessmentText(question.expected_answer || "Teacher review required.")}</p>${previousFeedback}${student.needs_manual_review ? teacherReview : ""}`}</li>`;
-      }).join("")}</ol></div><footer class="answer-review-dialog-footer"><div class="answer-review-export-actions"><button type="button" class="small-button" data-export-answer-review="pdf" data-review-attempt="${escapeHtml(student.attempt_id)}">Download PDF</button><button type="button" class="small-button" data-export-answer-review="docx" data-review-attempt="${escapeHtml(student.attempt_id)}">Download Word · DOCX</button></div><button type="button" class="small-button" data-close-answer-review>Close review</button></footer></dialog>` : "";
-      const grading = student.needs_manual_review && (student.manual_score === null || student.manual_score === undefined)
-        ? `<button type="button" class="small-button" data-grade-attempt="${student.attempt_id}">Save written review</button>`
-        : student.manual_score !== null ? `<small>Written mark: ${student.manual_score}</small>` : "";
+        return `<li class="answer-review-question"><div class="answer-review-question-heading"><strong>Question ${index + 1}</strong><span>${escapeHtml(question.marks)} marks</span></div><div class="answer-review-prompt">${assessmentPrompt(question)}${assessmentVisual(question.visual)}</div><small class="answer-review-state ${timedOut ? "is-timeout" : isCorrect ? "is-correct" : isMcq && answer !== "" ? "is-wrong" : ""}">${escapeHtml(state)}${isMcq ? ` · ${earned}/${question.marks} marks` : ""}</small><p><strong>Learner:</strong> ${escapeHtml(learnerReview)}</p>${isMcq ? `<p><strong>Correct answer:</strong> ${escapeHtml(correctAnswer)}</p>` : `<p><strong>Expected response:</strong> ${assessmentText(question.expected_answer || "Teacher review required.")}</p>${previousFeedback}${teacherReview}`}</li>`;
+      }).join("")}</ol></div><footer class="answer-review-dialog-footer">${canReviewWrittenResponses ? `<button type="button" class="answer-review-save-button" data-grade-attempt="${escapeHtml(student.attempt_id)}">${manualPending ? "Save written marks & feedback" : "Update saved marks & feedback"}</button>` : ""}<div class="answer-review-export-actions"><button type="button" class="small-button" data-export-answer-review="pdf" data-review-attempt="${escapeHtml(student.attempt_id)}">Download PDF</button><button type="button" class="small-button" data-export-answer-review="docx" data-review-attempt="${escapeHtml(student.attempt_id)}">Download Word · DOCX</button></div><button type="button" class="small-button" data-close-answer-review>Close review</button></footer></dialog>` : "";
       const integrityReviewSummary = student.integrity_review
         ? `<small>Integrity review: ${student.integrity_review.decision === "deduct" ? `${student.integrity_review.marks_deducted} mark(s) deducted` : "marks maintained"} · ${escapeHtml(student.integrity_review.reason)}</small>`
         : "";
-      const manualPending = student.needs_manual_review && (student.manual_score === null || student.manual_score === undefined);
       const finalScore = finalizedAssessmentScore(student);
       const performanceRank = performanceRanksByClass.get(student.class_name || "Unassigned class")?.get(String(student.attempt_id));
-      const score = student.status !== "submitted"
+      const score = !["submitted", "expired"].includes(student.status)
         ? "—"
         : manualPending
-          ? `<strong>${student.auto_score} objective marks</strong><small>Awaiting written-response marking</small>`
-          : `<strong>${finalScore} / ${assessment.total_marks}</strong>${Number(student.integrity_marks_deducted || 0) ? `<small>Integrity deduction: ${Number(student.integrity_marks_deducted)} marks</small>` : ""}`;
+          ? `<strong>${student.auto_score} objective marks</strong><small>Written marking pending · teacher action required</small>`
+          : `<strong>${finalScore ?? student.auto_score + Number(student.manual_score || 0)} / ${assessment.total_marks}</strong>${canReviewWrittenResponses ? `<small class="online-written-review-complete">Written marking complete · ${Number(student.manual_score)} mark(s) awarded</small>` : ""}${student.status === "expired" ? "<small>Attempt timed out · saved answers included</small>" : ""}${Number(student.integrity_marks_deducted || 0) ? `<small>Integrity deduction: ${Number(student.integrity_marks_deducted)} marks</small>` : ""}`;
       const historySummary = previousAttempts ? `<div class="assessment-previous-attempts"><strong>Previous attempts</strong>${previousAttempts}</div>` : "";
-      const row = `<article class="online-result-row"><div><strong>${escapeHtml(student.learner_name)}</strong><small>${student.attempt_number ? `Attempt ${student.attempt_number} · ` : ""}${escapeHtml(student.status.replaceAll("_", " "))}</small>${performanceRank ? `<small>Performance rank: #${performanceRank}</small>` : ""}${historySummary}</div><div>${score}${grading}${integrityReviewSummary}${resetAccess}</div><div><small>${eventSummary ? `Integrity events: ${escapeHtml(eventSummary)}` : "No browser events recorded"}</small>${integrityReview}${answerReview}</div></article>`;
+      const row = `<article class="online-result-row"><div><strong>${escapeHtml(student.learner_name)}</strong><small>${student.attempt_number ? `Attempt ${student.attempt_number} · ` : ""}${escapeHtml(student.status.replaceAll("_", " "))}</small>${performanceRank ? `<small>Performance rank: #${performanceRank}</small>` : ""}${historySummary}</div><div>${score}${integrityReviewSummary}${resetAccess}</div><div><small>${eventSummary ? `Integrity events: ${escapeHtml(eventSummary)}` : "No browser events recorded"}</small>${integrityReview}${answerReview}</div></article>`;
       scoreRowsByClass.get(student.class_name || "Unassigned class").push(row);
     });
     const rosterCodes = result.students.filter((student) => student.access_code)
@@ -4443,7 +4448,7 @@
     const resultStatus = assessment.status === "draft"
       ? `<div class="assessment-result-publication"><strong>Assessment is unpublished</strong><span>Publish the assessment to reopen learner access and collect results.</span></div>`
       : assessment.result_published_at
-      ? `<div class="assessment-result-publication"><strong>Results published</strong><span>Creator email ${assessment.result_email_sent_at ? `sent ${escapeHtml(formatAssessmentExpiry(assessment.result_email_sent_at))}` : "is pending or needs retry"}.</span></div>`
+      ? `<div class="assessment-result-publication"><strong>Results available to learners</strong><span>Last released ${escapeHtml(formatAssessmentExpiry(assessment.result_published_at))}. PDF and Word report email ${assessment.result_email_sent_at ? `sent ${escapeHtml(formatAssessmentExpiry(assessment.result_email_sent_at))}` : "is pending or needs retry"}.</span>${(isOwner || isAdmin) ? `<button type="button" class="small-button" data-republish-results="${assessment.id}">Republish updated results</button>` : ""}</div>`
       : `<div class="assessment-result-publication"><strong>Results are not published yet</strong><span>They publish automatically when the availability period ends, or an administrator can publish them sooner.</span>${isAdmin ? `<button type="button" class="small-button" data-admin-publish-results="${assessment.id}">Publish results to creator</button>` : ""}</div>`;
     const classScoreTabs = Array.from(studentsByClass.keys()).map((className, index) =>
       `<button type="button" role="tab" id="assessment-score-class-tab-${assessment.id}-${index}" aria-controls="assessment-score-class-panel-${assessment.id}-${index}" aria-selected="${index === 0}" tabindex="${index === 0 ? 0 : -1}" data-score-class-tab="${index}">${escapeHtml(className)} <span>${studentsByClass.get(className).length}</span></button>`
@@ -4451,7 +4456,7 @@
     const classScorePanels = Array.from(studentsByClass, ([className, students], index) =>
       `<section id="assessment-score-class-panel-${assessment.id}-${index}" class="assessment-score-class-panel" role="tabpanel" aria-labelledby="assessment-score-class-tab-${assessment.id}-${index}" data-score-class-panel="${index}"${index === 0 ? "" : " hidden"}><div class="assessment-score-list">${students.length ? scoreRowsByClass.get(className).join("") : "<p>No roster learners.</p>"}</div></section>`
     ).join("");
-    assessmentResults.innerHTML = `<div class="assessment-results-heading"><div><span class="eyebrow">ONLINE ASSESSMENT</span><h3>${escapeHtml(assessment.title)}</h3><p>${escapeHtml(assessment.class_name)} · ${result.students.length} learners · ${assessment.security_level === "advanced" ? "Advanced" : "Medium"} security</p><small data-live-results-status role="status" aria-live="polite">Live results refresh every five seconds while this page is visible.</small></div><button type="button" class="small-button" data-refresh-results="${assessment.id}">Refresh</button></div>${lifecycle}<div class="assessment-management-tabs" role="tablist" aria-label="Assessment management"><button type="button" role="tab" id="assessment-tab-class" aria-controls="assessment-panel-class" aria-selected="true" data-assessment-tab="class">Class management</button><button type="button" role="tab" id="assessment-tab-scores" aria-controls="assessment-panel-scores" aria-selected="false" data-assessment-tab="scores">Scores</button></div><section id="assessment-panel-class" class="assessment-management-panel" role="tabpanel" aria-labelledby="assessment-tab-class" data-assessment-panel="class">${shareActions}${rosterManager}</section><section id="assessment-panel-scores" class="assessment-management-panel" role="tabpanel" aria-labelledby="assessment-tab-scores" data-assessment-panel="scores" hidden>${resultStatus}<p class="field-help">Activity events are browser-reported signals, not proof of misconduct. Written marks are teacher-entered; final scores remain pending until written responses are marked. Ranks are calculated within each class; ties share rank.</p><div class="assessment-score-sheet-actions"><button type="button" class="small-button" data-download-score-sheet>Download CSV score sheet</button><button type="button" class="small-button" data-download-score-sheet-format="pdf">Download PDF</button><button type="button" class="small-button" data-download-score-sheet-format="docx">Download Word · DOCX</button><button type="button" class="small-button" data-email-score-sheet="${assessment.id}">Email score sheet to creator</button></div><div class="assessment-score-class-tabs" role="tablist" aria-label="Scores by class">${classScoreTabs || "<p>No classes found.</p>"}</div>${classScorePanels}</section>`;
+    assessmentResults.innerHTML = `<div class="assessment-results-heading"><div><span class="eyebrow">ONLINE ASSESSMENT</span><h3>${escapeHtml(assessment.title)}</h3><p>${escapeHtml(assessment.class_name)} · ${result.students.length} learners · ${assessment.security_level === "advanced" ? "Advanced" : "Medium"} security</p><small data-live-results-status role="status" aria-live="polite">Live results refresh every five seconds while this page is visible.</small></div><button type="button" class="small-button" data-refresh-results="${assessment.id}">Refresh</button></div>${lifecycle}<div class="assessment-management-tabs" role="tablist" aria-label="Assessment management"><button type="button" role="tab" id="assessment-tab-class" aria-controls="assessment-panel-class" aria-selected="true" data-assessment-tab="class">Class management</button><button type="button" role="tab" id="assessment-tab-scores" aria-controls="assessment-panel-scores" aria-selected="false" data-assessment-tab="scores">Scores</button></div><section id="assessment-panel-class" class="assessment-management-panel" role="tabpanel" aria-labelledby="assessment-panel-class" data-assessment-panel="class">${shareActions}${rosterManager}</section><section id="assessment-panel-scores" class="assessment-management-panel" role="tabpanel" aria-labelledby="assessment-panel-scores" data-assessment-panel="scores" hidden>${resultStatus}<p class="field-help">Activity events are browser-reported signals, not proof of misconduct. Written marks are teacher-entered; unmarked attempts are excluded from final-score analysis. Rankings use completed scores within each class; ties share rank.</p><div class="assessment-score-sheet-actions"><button type="button" class="small-button" data-download-score-sheet>Download CSV score sheet</button><button type="button" class="small-button" data-download-results-report="pdf">Detailed results report · PDF</button><button type="button" class="small-button" data-download-results-report="docx">Detailed results report · Word</button><button type="button" class="small-button" data-email-score-sheet="${assessment.id}">Email PDF and Word reports to creator</button></div><div class="assessment-score-class-tabs" role="tablist" aria-label="Scores by class">${classScoreTabs || "<p>No classes found.</p>"}</div>${classScorePanels}</section>`;
     assessmentResults.querySelector(`[data-assessment-tab="${selectedManagementTab}"]`)?.click();
     assessmentResults.querySelector(`[data-score-class-tab="${selectedClassTab}"]`)?.click();
     const classScoreTabList = assessmentResults.querySelector(".assessment-score-class-tabs");
@@ -4507,28 +4512,135 @@
     return `\uFEFF${rows.map((row) => row.map(escapeCell).join(",")).join("\r\n")}`;
   }
 
-  function downloadScoreSheet(format, result) {
+  function downloadAssessmentResultsReport(format, result) {
     const assessment = result.assessment;
-    const performanceRanksByClass = assessmentPerformanceRanksByClass(result.students || []);
-    const headers = ["Class", "Rank", "Learner", "Status", "Objective", "Written", "Integrity deduction", "Integrity review reason", "Final", "Max marks", "Percent", "Submitted"];
-    const rows = (result.students || []).map((student) => {
-      const manualPending = student.needs_manual_review && (student.manual_score === null || student.manual_score === undefined);
-      const finalScore = finalizedAssessmentScore(student);
-      return [student.class_name || "Unassigned class", performanceRanksByClass.get(student.class_name || "Unassigned class")?.get(String(student.attempt_id)) || "", student.learner_name, student.status.replaceAll("_", " "), student.status === "submitted" ? student.auto_score : "", student.manual_score ?? "", student.integrity_marks_deducted || 0, student.integrity_review?.reason || "", finalScore ?? (manualPending ? "Pending" : ""), assessment.total_marks, finalScore === null ? "" : `${(finalScore / assessment.total_marks * 100).toFixed(1)}%`, student.submitted_at || ""];
+    const students = result.students || [];
+    const questions = result.questions || [];
+    const finalized = students
+      .map((student) => ({ student, score: finalizedAssessmentScore(student) }))
+      .filter((entry) => entry.score !== null);
+    const scores = finalized.map((entry) => entry.score).sort((left, right) => left - right);
+    const mean = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
+    const median = scores.length
+      ? scores.length % 2
+        ? scores[(scores.length - 1) / 2]
+        : (scores[scores.length / 2 - 1] + scores[scores.length / 2]) / 2
+      : null;
+    const standardDeviation = mean === null ? null
+      : Math.sqrt(scores.reduce((sum, score) => sum + (score - mean) ** 2, 0) / scores.length);
+    const submitted = students.filter((student) => ["submitted", "expired"].includes(student.status));
+    const pending = submitted.filter((student) => student.needs_manual_review
+      && student.manual_score === null);
+    const inProgress = students.filter((student) => student.status === "in_progress").length;
+    const notStarted = students.filter((student) => student.status === "not_started").length;
+    const scoreRanks = assessmentPerformanceRanksByClass(students);
+    const percent = (score, maximum) => maximum > 0 ? `${(score / maximum * 100).toFixed(1)}%` : "—";
+    const scoreBands = [
+      { label: "0–19%", min: 0, max: 20 },
+      { label: "20–39%", min: 20, max: 40 },
+      { label: "40–59%", min: 40, max: 60 },
+      { label: "60–79%", min: 60, max: 80 },
+      { label: "80–100%", min: 80, max: 101 }
+    ];
+    const bandCounts = scoreBands.map((band) => ({
+      label: band.label,
+      count: finalized.filter(({ score }) => {
+        const percentage = Number(assessment.total_marks) > 0 ? score / Number(assessment.total_marks) * 100 : 0;
+        return percentage >= band.min && percentage < band.max;
+      }).length
+    }));
+    const classNames = Array.from(new Set(students.map((student) => student.class_name || "Unassigned class")));
+    const classRows = classNames.map((className) => {
+      const entries = finalized.filter(({ student }) => (student.class_name || "Unassigned class") === className);
+      const classScores = entries.map((entry) => entry.score);
+      const classMean = classScores.length
+        ? classScores.reduce((sum, score) => sum + score, 0) / classScores.length
+        : null;
+      return [className, students.filter((student) => (student.class_name || "Unassigned class") === className).length,
+        entries.length, pending.filter((student) => (student.class_name || "Unassigned class") === className).length,
+        classMean === null ? "—" : `${classMean.toFixed(1)} / ${assessment.total_marks} (${percent(classMean, Number(assessment.total_marks))})`];
     });
-    const title = `${assessment.title} - ${assessment.class_name} score sheet`;
+    const questionRows = questions.map((question, index) => {
+      const isMcq = question.question_type === "mcq";
+      const results = submitted.map((student) => {
+        const answer = student.answers?.[String(index)];
+        const review = student.question_reviews?.[String(index)];
+        if (isMcq) {
+          if (answer === undefined || answer === "") return null;
+          return Number(answer) === Number(question.correct_option) ? Number(question.marks) : 0;
+        }
+        return review?.score !== null && review?.score !== undefined && Number.isInteger(Number(review.score))
+          ? Number(review.score) : null;
+      }).filter((score) => score !== null);
+      const average = results.length ? results.reduce((sum, score) => sum + score, 0) / results.length : null;
+      const performance = average === null ? "Not marked"
+        : `${average.toFixed(1)} / ${question.marks} (${percent(average, Number(question.marks))})`;
+      return [`Q${index + 1}`, question.question_type.replaceAll("_", " "), question.marks,
+        results.length, isMcq ? `${results.filter((score) => score === Number(question.marks)).length} correct` : performance,
+        isMcq && results.length ? percent(results.filter((score) => score === Number(question.marks)).length, results.length) : "Mean awarded mark"];
+    });
+    const learnerRows = students.map((student) => {
+      const score = finalizedAssessmentScore(student);
+      const manualPending = student.needs_manual_review && student.manual_score === null;
+      return [student.class_name || "Unassigned class", student.learner_name,
+        student.status.replaceAll("_", " "), score === null ? "Pending" : `${score} / ${assessment.total_marks}`,
+        score === null ? "—" : percent(score, Number(assessment.total_marks)),
+        score === null ? "Not ranked" : `#${scoreRanks.get(String(student.attempt_id)) || "—"}`,
+        ["not_started", "in_progress"].includes(student.status) ? "Not applicable before submission"
+          : manualPending ? "Written marking pending"
+            : student.manual_score == null && questions.some((question) => question.question_type !== "mcq")
+              ? "Awaiting written mark" : "Marking complete",
+        student.submitted_at || "—"];
+    });
+    const observations = [
+      `${finalized.length} of ${students.length} rostered learner(s) have a finalized score; ${submitted.length} submitted or timed-out attempt(s), ${inProgress} in progress, and ${notStarted} not started.`,
+      `${pending.length} submitted attempt(s) still require written-response marking. Unmarked attempts are excluded from score averages and rankings.`,
+      mean === null
+        ? "No finalized scores are available yet, so class performance statistics cannot be calculated."
+        : `Finalized scores average ${mean.toFixed(1)}/${assessment.total_marks} (${percent(mean, Number(assessment.total_marks))}); median ${median.toFixed(1)}/${assessment.total_marks}; range ${scores[0]}–${scores[scores.length - 1]}; population standard deviation ${standardDeviation.toFixed(1)} marks.`,
+      ...bandCounts.map((band) => `${band.label} of maximum marks: ${band.count} learner(s). These are descriptive score bands, not pass/fail thresholds.`)
+    ];
     const blocks = [
-      { text: `Classes: ${assessment.class_name} | Subject: ${assessment.subject || ""}`, style: "Heading1" },
-      { text: `Status: ${assessment.status} | Total marks: ${assessment.total_marks}` },
-      { text: "Ranks use finalized submitted scores within each class; tied scores share rank. Unsubmitted or unmarked attempts are not ranked." },
-      { type: "table", rows: [headers, ...rows] }
+      { text: "Assessment details", style: "Heading1" },
+      { text: `Subject: ${assessment.subject || "Not specified"} · Class(es): ${assessment.class_name || "Not specified"}` },
+      { text: `Assessment type: ${(assessment.assessment_type || "Not specified").replaceAll("_", " ")} · Maximum marks: ${assessment.total_marks} · Availability status: ${assessment.status}` },
+      { text: `Results publication: ${assessment.result_published_at ? `Published ${assessment.result_published_at}` : "Not published yet"}` },
+      { text: `Report generated: ${new Date().toLocaleString()}` },
+      { text: "Executive summary", style: "Heading1" },
+      ...observations.map((text) => ({ text: `• ${text}` })),
+      { text: "Class comparison", style: "Heading1" },
+      { type: "table", rows: [["Class", "Roster", "Finalized", "Written marking pending", "Mean finalized score"], ...classRows] },
+      { text: "Question-level analysis", style: "Heading1" },
+      { text: "For multiple-choice items, performance is the number and percentage correct among learners who answered. For written items, performance is the mean awarded mark among responses already marked." },
+      { type: "table", rows: [["Item", "Type", "Max marks", "Responses marked/answered", "Performance", "Rate / mean"], ...questionRows] },
+      { text: "Learner results", style: "Heading1" },
+      { type: "table", rows: [["Class", "Learner", "Attempt status", "Final score", "Percentage", "Class rank", "Written marking", "Submitted"], ...learnerRows] },
+      { text: "Interpretation and limitations", style: "Heading1" },
+      { text: "Only submitted or timed-out attempts with completed marking are included in finalized-score statistics and rankings. Question-level written-item averages include only marked responses; they may change as teachers mark remaining attempts. Percentage bands describe score distribution only and do not define a pass mark. Browser integrity events are signals for teacher review, not proof of misconduct." }
+    ];
+    const lines = [
+      { text: "Assessment details", style: "Heading1" },
+      { text: `Subject: ${assessment.subject || "Not specified"} | Class(es): ${assessment.class_name || "Not specified"}` },
+      { text: `Assessment type: ${(assessment.assessment_type || "Not specified").replaceAll("_", " ")} | Maximum marks: ${assessment.total_marks} | Availability status: ${assessment.status}` },
+      { text: `Results publication: ${assessment.result_published_at ? `Published ${assessment.result_published_at}` : "Not published yet"}` },
+      { text: `Report generated: ${new Date().toLocaleString()}` },
+      { text: "Executive summary", style: "Heading1" },
+      ...observations.map((text) => ({ text: `- ${text}` })),
+      { text: "Class comparison", style: "Heading1" },
+      ...classRows.map((row) => ({ text: `${row[0]}: ${row[2]} finalized of ${row[1]} rostered; ${row[3]} written marking pending; mean score ${row[4]}.` })),
+      { text: "Question-level analysis", style: "Heading1" },
+      { text: "MCQ performance is correct responses among those answered. Written-item averages include marked responses only." },
+      ...questionRows.map((row) => ({ text: `${row[0]} (${row[1]}, ${row[2]} marks): ${row[4]} of ${row[3]} response(s); rate/mean ${row[5]}.` })),
+      { text: "Learner results", style: "Heading1" },
+      ...learnerRows.map((row) => ({ text: `${row[0]} | ${row[1]} | ${row[2]} | Score: ${row[3]} (${row[4]}) | Rank: ${row[5]} | ${row[6]} | Submitted: ${row[7]}` })),
+      { text: "Interpretation and limitations", style: "Heading1" },
+      { text: "Only submitted or timed-out attempts with completed marking are included in finalized-score statistics and rankings. Question-level written-item averages include only marked responses; they may change as teachers mark remaining attempts. Percentage bands describe score distribution only and do not define a pass mark. Browser integrity events are signals for teacher review, not proof of misconduct." }
     ];
     window.akademiAssessmentExport.download({
-      title,
+      title: `${assessment.title} - Detailed Results and Analysis Report`,
       blocks,
-      scoreSheet: true,
-      tableRows: [headers, ...rows],
-      rankingNote: "Ranks use finalized submitted scores within each class; tied scores share rank. Unsubmitted or unmarked attempts are not ranked.",
+      lines,
+      resultsReport: true,
       assessmentDetails: {
         subject: assessment.subject || "",
         className: assessment.class_name || "",
@@ -4913,22 +5025,49 @@
     }
     const adminPublish = event.target.closest("[data-admin-publish-results]");
     if (adminPublish) {
-      if (!(await window.akademiAlert.confirm("Publish these results to the assessment creator and email the score sheet now?", { title: "Publish results", confirmText: "Publish results" }))) return;
+      if (!(await window.akademiAlert.confirm("Publish these results to learners and email the detailed PDF and Word reports to the assessment creator?", { title: "Publish results", confirmText: "Publish results" }))) return;
       adminPublish.disabled = true;
       try {
         await workspaceRequest(`/api/admin/online-assessments/${adminPublish.dataset.adminPublishResults}/publish-results`, "POST", {});
         await Promise.all([loadOnlineResults(adminPublish.dataset.adminPublishResults), loadOnlineAssessmentLibrary()]);
-        showToast("Results published and emailed to the creator.");
+        showToast("Results published to learners and the detailed PDF and Word reports were emailed to the creator.");
       } catch (error) {
         showToast(error instanceof Error ? error.message : "Results could not be published.", "error");
         adminPublish.disabled = false;
       }
       return;
     }
-    const downloadFormattedScores = event.target.closest("[data-download-score-sheet-format]");
-    if (downloadFormattedScores && activeOnlineResults) {
-      try { downloadScoreSheet(downloadFormattedScores.dataset.downloadScoreSheetFormat, activeOnlineResults); }
-      catch (error) { showToast(error instanceof Error ? error.message : "The score sheet could not be exported.", "error"); }
+    const republishResults = event.target.closest("[data-republish-results]");
+    if (republishResults) {
+      if (!(await window.akademiAlert.confirm(
+        "Republish the latest assessment results to learners and email the detailed PDF and Word reports to the creator?",
+        { title: "Republish updated results", confirmText: "Republish results" }
+      ))) return;
+      republishResults.disabled = true;
+      try {
+        await workspaceRequest(`/api/teacher/online-assessments/${republishResults.dataset.republishResults}/republish-results`, "POST", {});
+        await Promise.all([
+          loadOnlineResults(republishResults.dataset.republishResults),
+          loadOnlineAssessmentLibrary()
+        ]);
+        showToast("Latest results were republished to learners and the detailed PDF and Word reports were emailed to the creator.");
+      } catch (error) {
+        try {
+          await loadOnlineResults(republishResults.dataset.republishResults);
+        } catch (refreshError) {
+          showToast(refreshError instanceof Error
+            ? `Republish status is uncertain because results could not be refreshed: ${refreshError.message}`
+            : "Republish status is uncertain because results could not be refreshed.", "error");
+          return;
+        }
+        showToast(error instanceof Error ? error.message : "The updated results could not be republished.", "error");
+      }
+      return;
+    }
+    const downloadResultsReport = event.target.closest("[data-download-results-report]");
+    if (downloadResultsReport && activeOnlineResults) {
+      try { downloadAssessmentResultsReport(downloadResultsReport.dataset.downloadResultsReport, activeOnlineResults); }
+      catch (error) { showToast(error instanceof Error ? error.message : "The detailed results report could not be exported.", "error"); }
       return;
     }
     const tab = event.target.closest("[data-assessment-tab]");
@@ -4960,13 +5099,13 @@
       emailScores.disabled = true;
       emailScores.textContent = "Emailing…";
       try {
-        await workspaceRequest(`/api/teacher/online-assessments/${emailScores.dataset.emailScoreSheet}/scoresheet/email`, "POST", {});
-        showToast("Score sheet emailed to the creator account.");
+        await workspaceRequest(`/api/teacher/online-assessments/${emailScores.dataset.emailScoreSheet}/results/email`, "POST", {});
+        showToast("Detailed PDF and Word results reports emailed to the creator account.");
       } catch (error) {
-        showToast(error instanceof Error ? error.message : "The score sheet could not be emailed.", "error");
+        showToast(error instanceof Error ? error.message : "The results report could not be emailed.", "error");
       } finally {
         emailScores.disabled = false;
-        emailScores.textContent = "Email score sheet to creator";
+        emailScores.textContent = "Email PDF and Word reports to creator";
       }
       return;
     }
@@ -5025,7 +5164,8 @@
       if (activeOnlineAssessmentId) {
         try {
           await loadOnlineResults(activeOnlineAssessmentId);
-          openGeneratedAssessmentTab("class");
+          assessmentResults.querySelector('[data-assessment-tab="scores"]')?.click();
+          assessmentResults.querySelector(`[data-review-answers="${CSS.escape(String(gradeButton.dataset.gradeAttempt))}"]`)?.click();
           showToast("Written-response marks and feedback saved.");
         } catch (error) {
           showToast(error instanceof Error
